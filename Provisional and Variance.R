@@ -61,7 +61,7 @@ datafile <- datafile %>%
          HealthLocationCode = discharge_hospital_nat_code,
          CHINo=chi_number,
          PatientPostcode=postcode,
-         LocalAuthorityCode=local_authority_code,
+         LocalAuthorityArea=local_authority_code,
          PatientDOB=date_of_birth,
          SpecialtyCode=discharge_specialty_nat_code,
          DateReferralReceived=date_referred_for_sw_assessment,
@@ -77,7 +77,7 @@ datafile <- datafile %>%
 
 #REVIEW FREQUENCY TABLES 
 table(datafile$Healthboard)
-table(datafile$LocalAuthorityCode)
+table(datafile$LocalAuthorityArea)
 table(datafile$SpecialtyCode)
 table(datafile$REASONFORDELAY)
 table(datafile$REASONFORDELAYSECONDARY)
@@ -104,6 +104,42 @@ datafile$Gender[datafile$Gender=="F"] <- "Female"
 table(datafile$Gender)  #precheck frequencies
 #Check to see if unknown gender code has a chi number and code based on 9th digit within CHI.
 ## How do I select the 9th character of the CHI and check if it's 0,2,4,6,8 for felame and 1,3,5,7,9 for male
+
+
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="1"] <- "Aberdeen City"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="2"] <- "Aberdeenshire"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="3"] <- "Angus"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="4"] <- "Argyll & Bute"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="5"] <- "Scottish Borders"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="6"] <- "Clackmannanshire"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="7"] <- "West Dunbartonshire"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="8"] <- "Dumfries & Galloway"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="9"] <- "Dundee City"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="10"] <- "East Ayrshire"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="11"] <- "East Dunbartonshire"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="12"] <- "East Lothian"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="13"] <- "East Renfrewshire"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="14"] <- "City of Edinburgh"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="15"] <- "Falkirk"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="16"] <- "Fife"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="17"] <- "Glasgow City"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="18"] <- "Highland"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="19"] <- "Inverclyde"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="20"] <- "Midlothian"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="21"] <- "Moray"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="22"] <- "North Ayrshire"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="23"] <- "North Lanarkshire"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="24"] <- "Orkney"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="25"] <- "Perth & Kinross"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="26"] <- "Renfrewshire"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="27"] <- "Shetland"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="28"] <- "South Ayrshire"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="29"] <- "South Lanarkshire"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="30"] <- "Stirling"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="31"] <- "West Lothian"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="32"] <- "Comhairle nan Eilean Siar"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="90"] <- "Unknown"
+
 View(datafile$CHINo)
 # Issue is that there some CHINo with 9 length and some with 10 length
 # Need to amend those with 9 length to become 10 by adding the 0 to the start
@@ -134,18 +170,18 @@ datafile<-datafile %>%
            ))
 
 table(datafile$Gender)
-
+table(datafile$Healthboard)
 #Amend REASONFORDELAY from '09' to '9'
 #View(datafile$REASONFORDELAY)
 
 datafile$REASONFORDELAY[datafile$REASONFORDELAY=="09"] <- "9"
 table(datafile$REASONFORDELAY)
 
-#Check LocalAuthorityCode has been changed ( done in previous script 1.)
-table(datafile$LocalAuthorityCode)
+#Check LocalAuthorityArea has been changed ( done in previous script 1.)
+table(datafile$LocalAuthorityArea)
 
-#Recode LocalAuthorityCode to Missing if blank
-datafile$LocalAuthorityCode[datafile$LocalAuthorityCode==""] <- "Missing"
+#Recode LocalAuthorityArea to Missing if blank
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea==""] <- "Missing"
 
 # HealthLocationCode 1st character to establish Healthboard
 
@@ -250,8 +286,30 @@ table(datafile$AgeGrouping)
 
 #Keep only Hospital Locations and N465R location ( Grampian carehome with NHS Beds )
 
-datafile<-datafile%>% 
-  filter(str_sub(HealthLocationCode,5,5)=="H"|HealthLocationCode=="N465R")
+#datafile<-datafile%>% 
+#filter(str_sub(HealthLocationCode,5,5)=="H"|HealthLocationCode=="N465R")
+
+#Check output
+table(datafile$REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check)
+
+#Reason code groupings
+#High Level Reason Code Grouping
+datafile<-datafile%>% mutate(REASONCODEGROUPINGSPOSTJULY2016_Check=
+if_else(REASONFORDELAY%in%c("11A","11B"), "H&SC - Community Care Assessment",
+if_else(REASONFORDELAY%in%c("23C","23D"), "H&SC - Funding",
+if_else(REASONFORDELAY%in%c("24A","24B","24C","24D","24E","24F","27A")|REASONFORDELAYSECONDARY%in%c("24DX","24EX"), "H&SC - Place Availability",
+if_else(REASONFORDELAY%in%c("25A","25D","25E","25F","44")|REASONFORDELAYSECONDARY%in%c("25X"), "H&SC - Care Arrangements",
+if_else(REASONFORDELAY%in%c("51","52")|REASONFORDELAYSECONDARY%in%c("51X"), "Patient/Carer/Family-related reasons:Legal/Financial",
+if_else(REASONFORDELAY%in%c("61","67"),"Patient/Carer/Family-related reasons:Disagreements",
+if_else(REASONFORDELAY%in%c("71","72","73","74")|REASONFORDELAYSECONDARY%in%c("71X"), "Patient/Carer/Family-related reasons:Other"," "))))))))
+
+#Check output
+table(datafile$REASONCODEGROUPINGSPOSTJULY2016_Check) #cant check with tables yet as this is record total ( not just census)
+##check as 93 showing as blank-is this code 100?
+
+#Individual Level Reason Code Groupingdatafile<-datafile%>% 
+  filter(str_sub(HealthLocationCode,5,5)=="H")
+
 
 #check HealthLocationCode
 table(datafile$HealthLocationCode)
@@ -289,25 +347,6 @@ if_else(REASONFORDELAY=="9", "Code 9",
 if_else(REASONFORDELAY%in%c("11A","11B","23C","23D","24A","24B","24C","24C","24D","24E","24F","27A","25A","25D","25E","25F","44"), "Health and Social Care Reasons",
 if_else(REASONFORDELAY%in%c("51","52","61","67","71","72","73","74"),"Patient/Carer/Family-related reasons","Other")))))
 
-#Check output
-table(datafile$REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check)
-
-#Reason code groupings
-#High Level Reason Code Grouping
-datafile<-datafile%>% mutate(REASONCODEGROUPINGSPOSTJULY2016_Check=
-if_else(REASONFORDELAY%in%c("11A","11B"), "H&SC - Community Care Assessment",
-if_else(REASONFORDELAY%in%c("23C","23D"), "H&SC - Funding",
-if_else(REASONFORDELAY%in%c("24A","24B","24C","24D","24E","24F","27A")|REASONFORDELAYSECONDARY%in%c("24DX","24EX"), "H&SC - Place Availability",
-if_else(REASONFORDELAY%in%c("25A","25D","25E","25F","44")|REASONFORDELAYSECONDARY%in%c("25X"), "H&SC - Care Arrangements",
-if_else(REASONFORDELAY%in%c("51","52")|REASONFORDELAYSECONDARY%in%c("51X"), "Patient/Carer/Family-related reasons:Legal/Financial",
-if_else(REASONFORDELAY%in%c("61","67"),"Patient/Carer/Family-related reasons:Disagreements",
-if_else(REASONFORDELAY%in%c("71","72","73","74")|REASONFORDELAYSECONDARY%in%c("71X"), "Patient/Carer/Family-related reasons:Other"," "))))))))
-
-#Check output
-table(datafile$REASONCODEGROUPINGSPOSTJULY2016_Check) #cant check with tables yet as this is record total ( not just census)
-##check as 93 showing as blank-is this code 100?
-
-#Individual Level Reason Code Grouping
 datafile<-datafile%>% mutate(DELAY_DESCRIPTION=
 if_else(REASONFORDELAY%in%c("11A","11B"), "Awaiting commencement of post-hospital social care assessment(including transfer to another area team). Social Care includes home care and social work OT",
 if_else(REASONFORDELAY%in%c("23C"), "Non-availability of statutory funding to purchase Care Home place",
@@ -371,9 +410,15 @@ if_else(DateDischarge<=censusdate & REASONFORDELAYSECONDARY!=c("26X","46X"),"",
 if_else(DateDischarge==Readyfordischargedate & REASONFORDELAYSECONDARY!=c("26X","46X"),"",
 if_else(DateDischarge>=censusdate & REASONFORDELAYSECONDARY!=c("26X","46X"),"",""))))))
 
-table(datafile$CENSUSFLAG) #Matches syntax at this point 1586 v 1585 - one extra record is at census point for N465R )
+datafile9<-datafile %>% filter(CENSUSFLAG=="Y" & REASONFORDELAYSECONDARY==c("26X","46X"))
+table(datafile9$REASONFORDELAYSECONDARY)
 
-datafile2<-datafile %>% filter(HealthLocationCode=="N465R") 
+table(datafile$CENSUSFLAG) #Matches syntax at this point 1586 v 1585 - one extra record is at census point for N465R )
+table(datafile$Healthboard)
+
+
+
+#datafile2<-datafile %>% filter(HealthLocationCode=="N465R") 
 
 #sort cases by CHI
 
@@ -424,9 +469,12 @@ datafile<-datafile %>% mutate(NoofPatients=1)
 table(datafile$NoofPatients) #3790 matches.
 
 write_sav(datafile,paste0(filepath,"scotland_temp.sav"))
+table(datafile$REASONFORDELAYSECONDARY) # checking to see if there are any 26X or 46X
 
 datafile2 <- filter(datafile, REASONFORDELAY!="100" & CENSUSFLAG=="Y")
+table(datafile2$REASONFORDELAYSECONDARY) # checking to see if there are any 26X or 46X
 
+         
 
 #aggregate
 Census_hb <- datafile2 %>% 
@@ -435,14 +483,60 @@ Census_hb <- datafile2 %>%
   ungroup()
 glimpse(Census_hb) # matches syntax output
 head(Census_hb,42)
-table(Census_hb$Healthboard)
-table(datafile$Healthboard)
 
-#aggregate
+
+#aggregate at LA level
 Census_LA <- datafile2 %>% 
-  group_by(Healthboard, LocalAuthorityCode, REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check) %>% 
+  group_by(Healthboard, LocalAuthorityArea, REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check) %>% 
   summarise(CensusTotal = sum(NoofPatients)) %>%
   ungroup()
 glimpse(Census_LA) # matches syntax output
 head(Census_LA,42)
+
+#aggregate OBDs at HB level
+datafile3 <- filter(datafile, REASONFORDELAY!="100")
+OBDs_HB <- datafile3 %>% 
+  group_by(Healthboard, REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check) %>% 
+  summarise(OBDs_intheMonth = sum(OBDs_intheMonth)) %>%
+  ungroup()
+glimpse(OBDs_HB)# matches syntax output
+
+#aggregate OBDs at LA level
+
+OBDs_LA <- datafile3 %>% 
+  group_by(Healthboard, LocalAuthorityArea, REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check) %>% 
+  summarise(OBDs_intheMonth = sum(OBDs_intheMonth)) %>%
+  ungroup()
+glimpse(OBDs_LA)# matches syntax output
+
+#Line 686 of syntax to start Tuesday
+
+#Add tables
+
+datafile4<-bind_rows(Census_hb,Census_LA,OBDs_HB,OBDs_LA)
+
+datafile4<-datafile4 %>% mutate(REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check=
+                                if_else(REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check!="Code 9","HSC/PCF","Code 9"))
+
+datafile4 <- datafile4 %>% 
+  rename(DelayCategory=REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check) #rename variable
+glimpse(datafile4$CensusTotal)
+
+ProvisionalCensustotal <- datafile4 %>% 
+  group_by(Healthboard, LocalAuthorityArea, DelayCategory) %>% 
+  summarise(CensusTotal=sum(CensusTotal,na.rm=TRUE)) %>% 
+  ungroup()
+glimpse(ProvisionalCensustotal)
+ProvisionalOBDtotal <- datafile4 %>% 
+  group_by(Healthboard, LocalAuthorityArea, DelayCategory) %>% 
+  summarise(OBDs_intheMonth = sum(OBDs_intheMonth,na.rm=TRUE)) %>%
+  ungroup()
+
+#Produce Provisional Census and OBD Totals Table
+ProvisionalCensusandOBDTotals<-bind_rows(ProvisionalCensustotal,ProvisionalOBDtotal)
+
+write_csv(ProvisionalCensusandOBDTotals,paste0(filepath,"Provisional Census and OBD totals.csv"))
+
+## Check against original data has one extra
+
 ### END OF SCRIPT ###
