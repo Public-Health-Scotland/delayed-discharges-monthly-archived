@@ -32,18 +32,21 @@ library(stringr)
 library(openxlsx)
 library(tidyverse)
 library(janitor)
+library(haven)
 library(stats)
 devtools::install_github("Health-SocialCare-Scotland/phimethods")
 
 ### 1.Filepaths for latest month
 
 filepath<-("/conf/delayed_discharges/RAP development/2019_07/Outputs/")
+filepath2<-("/conf/delayed_discharges/RAP development/2019_07/Data/scotland/")
+
 
 censusdate<-dmy("25/07/2019")
 monthstart<-dmy("01/07/2019")
 monthend<-dmy("31/07/2019")
 
-Monthflag<-("Jul-2019")
+Monthflag<-("Jul 2019")
 
 ### 2.Get Scotland_allboards file for latest month ----
 
@@ -213,7 +216,12 @@ datafile$LocalAuthorityArea[datafile$LocalAuthorityArea==""] <- "Missing"
 #  mutate(Healthboard=
 # if_else(substr(HealthLocationCode,1,1)=="C" & Healthboard2=="Unknown","NHS Greater Glasgow & Clyde",
 #if_else(substr(HealthLocationCode,1,1)=="H" & Healthboard2=="Unknown","NHS Highland",Healthboard)))
-                                                           
+
+# datafile<-datafile%>%
+#   mutate(Healthboard=
+#            case_when(str_sub(HealthLocationCode,1,1) =="C"& str_sub(Healthboard,1,1) =="H" ~ "NHS Highland",
+#                      str_sub(HealthLocationCode,1,1) =="C"& str_sub(Healthboard,1,1) =="G" ~ "NHS Greater Glasgow & Clyde"))
+
 
 #table(datafile$Healthboard=="Unknown")
 table(datafile$Healthboard)
@@ -307,7 +315,8 @@ if_else(REASONFORDELAY%in%c("71","72","73","74")|REASONFORDELAYSECONDARY%in%c("7
 table(datafile$REASONCODEGROUPINGSPOSTJULY2016_Check) #cant check with tables yet as this is record total ( not just census)
 ##check as 93 showing as blank-is this code 100?
 
-#Individual Level Reason Code Groupingdatafile<-datafile%>% 
+#Individual Level Reason Code Grouping
+datafile<-datafile%>% 
   filter(str_sub(HealthLocationCode,5,5)=="H")
 
 
@@ -402,17 +411,21 @@ datafile<-datafile%>% mutate(PatientDOB = dmy(PatientDOB),
  
 
 #compute new variable census flag - ignoring 26X and 46X
-
+'%!in%' <- function(x,y)!('%in%'(x,y))
+                          
 datafile<-datafile %>% mutate(CENSUSFLAG=
-if_else(is.na(DateDischarge) & Readyfordischargedate<censusdate & REASONFORDELAYSECONDARY!=c("26X","46X"),"Y",
-if_else(DateDischarge>=censusdate & Readyfordischargedate<censusdate & REASONFORDELAYSECONDARY!=c("26X","46X"),"Y",
-if_else(DateDischarge<=censusdate & REASONFORDELAYSECONDARY!=c("26X","46X"),"",
-if_else(DateDischarge==Readyfordischargedate & REASONFORDELAYSECONDARY!=c("26X","46X"),"",
-if_else(DateDischarge>=censusdate & REASONFORDELAYSECONDARY!=c("26X","46X"),"",""))))))
+if_else(is.na(DateDischarge) & Readyfordischargedate<censusdate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",
+if_else(DateDischarge>=censusdate & Readyfordischargedate<censusdate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",
+if_else(DateDischarge<=censusdate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"",
+if_else(DateDischarge==Readyfordischargedate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in% c("26X","46X"),"",
+if_else(DateDischarge>=censusdate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"",""))))))
 
-datafile9<-datafile %>% filter(CENSUSFLAG=="Y" & REASONFORDELAYSECONDARY==c("26X","46X"))
-table(datafile9$REASONFORDELAYSECONDARY)
 
+#datafile9 <- filter(datafile, REASONFORDELAY!="100" & CENSUSFLAG=="Y")
+#datafile10 <- filter(datafile, REASONFORDELAYSECONDARY%!in%c("26X","46X"))
+#table(datafile9$REASONFORDELAYSECONDARY)
+#datafile9<-datafile %>% filter(CENSUSFLAG=="Y" & REASONFORDELAYSECONDARY==c("26X","46X"))
+# Why is 26X still in there? Why is there two records with a 24B for a secondary code?
 table(datafile$CENSUSFLAG) #Matches syntax at this point 1586 v 1585 - one extra record is at census point for N465R )
 table(datafile$Healthboard)
 
@@ -537,6 +550,295 @@ ProvisionalCensusandOBDTotals<-bind_rows(ProvisionalCensustotal,ProvisionalOBDto
 
 write_csv(ProvisionalCensusandOBDTotals,paste0(filepath,"Provisional Census and OBD totals.csv"))
 
-## Check against original data has one extra
+
+table(datafile$HealthLocationCode)
+
+#Line 751 in spss syntax onwards.
+
+#Read in sav file
+datafile<-read_sav(paste0(filepath,"scotland_temp.sav"))
+
+
+table(datafile$NoofPatients)
+
+
+##Calculate Del;ay at Census at Census POint
+datafile<-datafile %>% mutate(DelayatCensus=
+  if_else(CENSUSFLAG=="Y" & Readyfordischargedate<censusdate,difftime(censusdate, Readyfordischargedate, units = "days"),0))
+
+#sum(datafile$DelayatCensus) # check the total matches the syntax output totals - slight difference due to N465R?
+
+datafile<-datafile%>% mutate(DelayLengthGroup=
+  if_else(DelayatCensus >= 1 & DelayatCensus <= 3, "1-3 days",
+  if_else(DelayatCensus > 3 & DelayatCensus <= 14, "3-14 days",
+  if_else(DelayatCensus > 14 & DelayatCensus <= 28, "2-4 weeks",
+  if_else(DelayatCensus > 28 & DelayatCensus <= 42, "4-6 weeks",
+  if_else(DelayatCensus > 42 & DelayatCensus <= 84, "6-12 weeks",
+  if_else(DelayatCensus > 84 & DelayatCensus <= 182.625, "3-6 months",
+  if_else(DelayatCensus > 182.625 & DelayatCensus < 365, "6-12 months",
+  if_else(DelayatCensus >= 365, "12 months or more","N/A")))))))))
+
+table(datafile$DelayLengthGroup)
+
+#Create counts for each delay period
+datafile$Delay1to3days[datafile$DelayatCensus >=1 &datafile$DelayatCensus<=3] <-1
+datafile$Delay3to14days[datafile$DelayatCensus >3 &datafile$DelayatCensus<=14] <-1
+datafile$Delay2to4weeks[datafile$DelayatCensus >14 &datafile$DelayatCensus<=28] <-1
+datafile$Delay4to6weeks[datafile$DelayatCensus >28 &datafile$DelayatCensus<=42] <-1
+datafile$Delay6to12weeks[datafile$DelayatCensus >42 &datafile$DelayatCensus<=84] <-1
+datafile$Delay3to6months[datafile$DelayatCensus >84 &datafile$DelayatCensus<=182.625] <-1
+datafile$Delay6to12months[datafile$DelayatCensus >182.625 &datafile$DelayatCensus<=365] <-1
+datafile$DelayOver12months[datafile$DelayatCensus >365] <-1
+datafile$DelayOver3days[datafile$DelayatCensus >3] <-1
+datafile$DelayUnder2wks[datafile$DelayatCensus <=14] <-1
+datafile$DelayOver2wks[datafile$DelayatCensus>14] <-1
+datafile$DelayOver4wks[datafile$DelayatCensus >28] <-1
+datafile$DelayOver6wks[datafile$DelayatCensus >42] <-1
+
+table(datafile$Delay1to3days)
+
+
+###Read in sav file
+#data_validated<-read_sav(paste0(filepath2,"SCOTLAND_validated.sav"))
+
+
+#Rename variable
+datafile <- datafile %>% rename(hosp = HealthLocationCode)
+         
+#match in hospital names
+
+# Add hospital name
+lookup_hosp <-
+  read_sav("/conf/delayed_discharges/Data files/Single Submissions (July 2016 onwards)/Acute hospital lookup.sav")
+
+datafile <- left_join(datafile, lookup_hosp,
+                       by = c("hosp" = "hosp"))
+
+#Create count for each type of location - should we classify L465R as acute too as it's acute beds being allocated?
+datafile<-datafile %>% mutate(acute=
+                                  if_else(is.na(hospname),0,1))
+
+datafile<-datafile %>% mutate(gpled=
+                                if_else(acute %!in%c("1") & SpecialtyCode=="E12",1,0))
+
+
+datafile<-datafile %>% mutate(notgpled=
+                                if_else(acute %!in%c("1") & gpled %!in%c("1"),1,0))
+
+#Check that each row only has one of either acute, carehome, gpled or notgpled
+
+datafile<-datafile %>% mutate(total=acute+gpled+notgpled)
+table(datafile$total)
+
+Check<-filter(datafile,total>1)
+table(Check) # nothing found in check
+
+#remove unwanted variables
+datafile<-select(datafile,-total,-hospname)
+
+#Rename variable back to its original name
+datafile <- datafile %>% rename(HealthLocationCode = hosp)
+
+#select out code 100s
+datafile2<-filter(datafile,REASONFORDELAY!="100")
+
+#Add year
+datafile2<-datafile2 %>% mutate(year="2018/19")
+
+#rename variables
+
+datafile2 <- datafile2 %>% 
+  rename(hbname =Healthboard,
+         month = Monthflag,
+         chi=CHINo,
+         la=LocalAuthorityArea,
+         age=AgeGrouping,
+         daysdelayed=DelayatCensus,
+         reas1=REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check,
+         reas2=REASONCODEGROUPINGSPOSTJULY2016_Check,
+         reas3=DELAY_DESCRIPTION,
+         totpats=NoofPatients,
+         delayreason=REASONFORDELAY,
+         secReason=REASONFORDELAYSECONDARY)
+
+#subgroupings
+datafile2$reas2[datafile2$reas3=="Adults with Incpacity Act"] <- "Adults with Incapacity Act"
+datafile2$reas2[datafile2$reas1=="Code 9" & datafile2$reas3 %!in%c("Adults with Incapacity Act")] <- "Other code 9 reasons(not AWI)"
+datafile2$reas2[datafile2$reas3=="Awaiting availablity of transport"] <- "Transport"
+
+
+write_sav(datafile2,paste0(filepath,"SCOTLAND_PROVISIONAL_TEMP_R.sav"))
+
+read_spss(datafile2,paste0(filepath,"SCOTLAND_PROVISIONAL_TEMP_R.sav"))
+datafile3 <- haven::read_spss(paste0(filepath,"SCOTLAND_PROVISIONAL_TEMP_R.sav"))
+
+
+
+datafile4<-filter(datafile3,CENSUSFLAG=="Y")
+datafile4$level<-"1"
+datafile4$areaname<-"Scotland"
+
+Scotlandbymainreasongrouping <- datafile4 %>% 
+  group_by(year,month,level,areaname,age,reas1) %>% 
+  summarise(totpats=sum(totpats,na.rm=TRUE),Delay1to3days=sum(Delay1to3days,na.rm=TRUE),
+            Delay3to14days=sum(Delay3to14days,na.rm=TRUE),Delay2to4weeks=sum(Delay2to4weeks,na.rm=TRUE),
+            Delay4to6weeks=sum(Delay4to6weeks,na.rm=TRUE),Delay6to12weeks=sum(Delay6to12weeks,na.rm=TRUE),
+            Delay3to6months=sum(Delay3to6months,na.rm=TRUE),Delay6to12months=sum(Delay6to12months,na.rm=TRUE),
+            DelayOver12months=sum(DelayOver12months,na.rm=TRUE),DelayOver3days=sum(DelayOver3days,na.rm=TRUE),
+            DelayUnder2wks=sum(DelayUnder2wks,na.rm=TRUE),
+            DelayOver6wks=sum(DelayOver6wks,na.rm=TRUE),DelayOver4wks=sum(DelayOver4wks,na.rm=TRUE),
+            DelayOver2wks=sum(DelayOver2wks,na.rm=TRUE), acute=sum(acute,na.rm=TRUE),
+            gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE),meandelay=mean(daysdelayed),
+            mediandelay=median(daysdelayed)) %>% 
+  ungroup()
+
+Scotlandbysubreasongrouping <- datafile4 %>% 
+  group_by(year,month,level,areaname,age,reas2) %>% 
+  summarise(totpats=sum(totpats,na.rm=TRUE),Delay1to3days=sum(Delay1to3days,na.rm=TRUE),
+            Delay3to14days=sum(Delay3to14days,na.rm=TRUE),Delay2to4weeks=sum(Delay2to4weeks,na.rm=TRUE),
+            Delay4to6weeks=sum(Delay4to6weeks,na.rm=TRUE),Delay6to12weeks=sum(Delay6to12weeks,na.rm=TRUE),
+            Delay3to6months=sum(Delay3to6months,na.rm=TRUE),Delay6to12months=sum(Delay6to12months,na.rm=TRUE),
+            DelayOver12months=sum(DelayOver12months,na.rm=TRUE),DelayOver3days=sum(DelayOver3days,na.rm=TRUE),
+            DelayUnder2wks=sum(DelayUnder2wks,na.rm=TRUE),
+            DelayOver6wks=sum(DelayOver6wks,na.rm=TRUE),DelayOver4wks=sum(DelayOver4wks,na.rm=TRUE),
+            DelayOver2wks=sum(DelayOver2wks,na.rm=TRUE), acute=sum(acute,na.rm=TRUE),
+            gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE),meandelay=mean(daysdelayed),
+            mediandelay=median(daysdelayed)) %>% 
+  ungroup()
+
+
+#Breakdown for HBs (Level=2)
+datafile4$level<-"2"
+datafile4<-datafile4 %>% mutate(areaname=hbname)
+
+
+HBbymainreasongrouping <- datafile4 %>% 
+  group_by(year,month,level,areaname,age,reas1) %>% 
+  summarise(totpats=sum(totpats,na.rm=TRUE),Delay1to3days=sum(Delay1to3days,na.rm=TRUE),
+            Delay3to14days=sum(Delay3to14days,na.rm=TRUE),Delay2to4weeks=sum(Delay2to4weeks,na.rm=TRUE),
+            Delay4to6weeks=sum(Delay4to6weeks,na.rm=TRUE),Delay6to12weeks=sum(Delay6to12weeks,na.rm=TRUE),
+            Delay3to6months=sum(Delay3to6months,na.rm=TRUE),Delay6to12months=sum(Delay6to12months,na.rm=TRUE),
+            DelayOver12months=sum(DelayOver12months,na.rm=TRUE),DelayOver3days=sum(DelayOver3days,na.rm=TRUE),
+            DelayUnder2wks=sum(DelayUnder2wks,na.rm=TRUE),
+            DelayOver6wks=sum(DelayOver6wks,na.rm=TRUE),DelayOver4wks=sum(DelayOver4wks,na.rm=TRUE),
+            DelayOver2wks=sum(DelayOver2wks,na.rm=TRUE), acute=sum(acute,na.rm=TRUE),
+            gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
+  ungroup()
+
+HBbysubreasongrouping <- datafile4 %>% 
+  group_by(year,month,level,areaname,age,reas2) %>% 
+  summarise(totpats=sum(totpats,na.rm=TRUE),Delay1to3days=sum(Delay1to3days,na.rm=TRUE),
+            Delay3to14days=sum(Delay3to14days,na.rm=TRUE),Delay2to4weeks=sum(Delay2to4weeks,na.rm=TRUE),
+            Delay4to6weeks=sum(Delay4to6weeks,na.rm=TRUE),Delay6to12weeks=sum(Delay6to12weeks,na.rm=TRUE),
+            Delay3to6months=sum(Delay3to6months,na.rm=TRUE),Delay6to12months=sum(Delay6to12months,na.rm=TRUE),
+            DelayOver12months=sum(DelayOver12months,na.rm=TRUE),DelayOver3days=sum(DelayOver3days,na.rm=TRUE),
+            DelayUnder2wks=sum(DelayUnder2wks,na.rm=TRUE),
+            DelayOver6wks=sum(DelayOver6wks,na.rm=TRUE),DelayOver4wks=sum(DelayOver4wks,na.rm=TRUE),
+            DelayOver2wks=sum(DelayOver2wks,na.rm=TRUE), acute=sum(acute,na.rm=TRUE),
+            gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
+  ungroup()
+
+#Breakdown for LAs (Level=2)
+datafile4$level<-"3"
+datafile4<-datafile4 %>% mutate(areaname=la)
+
+
+LAbymainreasongrouping <- datafile4 %>% 
+  group_by(year,month,level,areaname,age,reas1) %>% 
+  summarise(totpats=sum(totpats,na.rm=TRUE),Delay1to3days=sum(Delay1to3days,na.rm=TRUE),
+            Delay3to14days=sum(Delay3to14days,na.rm=TRUE),Delay2to4weeks=sum(Delay2to4weeks,na.rm=TRUE),
+            Delay4to6weeks=sum(Delay4to6weeks,na.rm=TRUE),Delay6to12weeks=sum(Delay6to12weeks,na.rm=TRUE),
+            Delay3to6months=sum(Delay3to6months,na.rm=TRUE),Delay6to12months=sum(Delay6to12months,na.rm=TRUE),
+            DelayOver12months=sum(DelayOver12months,na.rm=TRUE),DelayOver3days=sum(DelayOver3days,na.rm=TRUE),
+            DelayUnder2wks=sum(DelayUnder2wks,na.rm=TRUE),
+            DelayOver6wks=sum(DelayOver6wks,na.rm=TRUE),DelayOver4wks=sum(DelayOver4wks,na.rm=TRUE),
+            DelayOver2wks=sum(DelayOver2wks,na.rm=TRUE), acute=sum(acute,na.rm=TRUE),
+            gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
+  ungroup()
+
+LAbysubreasongrouping <- datafile4 %>% 
+  group_by(year,month,level,areaname,age,reas2) %>% 
+  summarise(totpats=sum(totpats,na.rm=TRUE),Delay1to3days=sum(Delay1to3days,na.rm=TRUE),
+            Delay3to14days=sum(Delay3to14days,na.rm=TRUE),Delay2to4weeks=sum(Delay2to4weeks,na.rm=TRUE),
+            Delay4to6weeks=sum(Delay4to6weeks,na.rm=TRUE),Delay6to12weeks=sum(Delay6to12weeks,na.rm=TRUE),
+            Delay3to6months=sum(Delay3to6months,na.rm=TRUE),Delay6to12months=sum(Delay6to12months,na.rm=TRUE),
+            DelayOver12months=sum(DelayOver12months,na.rm=TRUE),DelayOver3days=sum(DelayOver3days,na.rm=TRUE),
+            DelayUnder2wks=sum(DelayUnder2wks,na.rm=TRUE),
+            DelayOver6wks=sum(DelayOver6wks,na.rm=TRUE),DelayOver4wks=sum(DelayOver4wks,na.rm=TRUE),
+            DelayOver2wks=sum(DelayOver2wks,na.rm=TRUE), acute=sum(acute,na.rm=TRUE),
+            gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
+  ungroup()
+
+#add files together
+
+Scot_HB_LA<-bind_rows(Scotlandbymainreasongrouping,Scotlandbysubreasongrouping,HBbymainreasongrouping,HBbysubreasongrouping,
+                  LAbymainreasongrouping,LAbysubreasongrouping)
+
+datafile5<-select(Scot_HB_LA,-meandelay,-mediandelay)
+
+#if reas1 is blank, reas1 = reas2
+
+datafile6<-datafile5%>% mutate(reas1=
+                               if_else(is.na(reas1), reas2,reas1))
+
+#remove reas2
+datafile6<-select(datafile6,-reas2)
+datafile6$age<-"All"
+ScotHBLAallages<- datafile6 %>% 
+  group_by(year,month,level,areaname,age,reas1) %>% 
+  summarise(totpats=sum(totpats,na.rm=TRUE),Delay1to3days=sum(Delay1to3days,na.rm=TRUE),
+            Delay3to14days=sum(Delay3to14days,na.rm=TRUE),Delay2to4weeks=sum(Delay2to4weeks,na.rm=TRUE),
+            Delay4to6weeks=sum(Delay4to6weeks,na.rm=TRUE),Delay6to12weeks=sum(Delay6to12weeks,na.rm=TRUE),
+            Delay3to6months=sum(Delay3to6months,na.rm=TRUE),Delay6to12months=sum(Delay6to12months,na.rm=TRUE),
+            DelayOver12months=sum(DelayOver12months,na.rm=TRUE),DelayOver3days=sum(DelayOver3days,na.rm=TRUE),
+            DelayUnder2wks=sum(DelayUnder2wks,na.rm=TRUE),
+            DelayOver6wks=sum(DelayOver6wks,na.rm=TRUE),DelayOver4wks=sum(DelayOver4wks,na.rm=TRUE),
+            DelayOver2wks=sum(DelayOver2wks,na.rm=TRUE), acute=sum(acute,na.rm=TRUE),
+            gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
+  ungroup()
+
+ScotHBLAallreasonexcHSCPatFamtotal<-rbind(datafile6,ScotHBLAallages)
+table(datafile6$reas1)
+
+#Calculate total number of delays excluding code9s.
+datafile7<-filter(datafile6, reas1%in%c("Health and Social Care Reasons","Patient/Carer/Family-related reasons"))
+datafile7$reas1<-"All Delays excl. Code 9"
+
+ScotHBLAallreasonsincHSCPatFamtotal<- datafile7 %>% 
+  group_by(year,month,level,areaname,age,reas1) %>% 
+  summarise(totpats=sum(totpats,na.rm=TRUE),Delay1to3days=sum(Delay1to3days,na.rm=TRUE),
+            Delay3to14days=sum(Delay3to14days,na.rm=TRUE),Delay2to4weeks=sum(Delay2to4weeks,na.rm=TRUE),
+            Delay4to6weeks=sum(Delay4to6weeks,na.rm=TRUE),Delay6to12weeks=sum(Delay6to12weeks,na.rm=TRUE),
+            Delay3to6months=sum(Delay3to6months,na.rm=TRUE),Delay6to12months=sum(Delay6to12months,na.rm=TRUE),
+            DelayOver12months=sum(DelayOver12months,na.rm=TRUE),DelayOver3days=sum(DelayOver3days,na.rm=TRUE),
+            DelayUnder2wks=sum(DelayUnder2wks,na.rm=TRUE),
+            DelayOver6wks=sum(DelayOver6wks,na.rm=TRUE),DelayOver4wks=sum(DelayOver4wks,na.rm=TRUE),
+            DelayOver2wks=sum(DelayOver2wks,na.rm=TRUE), acute=sum(acute,na.rm=TRUE),
+            gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
+  ungroup()
+
+#calculate the number of delays for all reasons
+
+datafile8<-filter(ScotHBLAallreasonexcHSCPatFamtotal, reas1%in%c("Health and Social Care Reasons","Code 9",
+                                                                 "Patient/Carer/Family-related reasons"))
+table(datafile8$reas1) # check totals against the syntax output ( 320 total is correct )
+
+datafile8$reas1<-"All"
+ScotHBLAallreasonsalldelaystotal<- datafile8 %>% 
+  group_by(year,month,level,areaname,age,reas1) %>% 
+  summarise(totpats=sum(totpats,na.rm=TRUE),Delay1to3days=sum(Delay1to3days,na.rm=TRUE),
+            Delay3to14days=sum(Delay3to14days,na.rm=TRUE),Delay2to4weeks=sum(Delay2to4weeks,na.rm=TRUE),
+            Delay4to6weeks=sum(Delay4to6weeks,na.rm=TRUE),Delay6to12weeks=sum(Delay6to12weeks,na.rm=TRUE),
+            Delay3to6months=sum(Delay3to6months,na.rm=TRUE),Delay6to12months=sum(Delay6to12months,na.rm=TRUE),
+            DelayOver12months=sum(DelayOver12months,na.rm=TRUE),DelayOver3days=sum(DelayOver3days,na.rm=TRUE),
+            DelayUnder2wks=sum(DelayUnder2wks,na.rm=TRUE),
+            DelayOver6wks=sum(DelayOver6wks,na.rm=TRUE),DelayOver4wks=sum(DelayOver4wks,na.rm=TRUE),
+            DelayOver2wks=sum(DelayOver2wks,na.rm=TRUE), acute=sum(acute,na.rm=TRUE),
+            gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
+  ungroup()
+
+#add files
+
+
 
 ### END OF SCRIPT ###
