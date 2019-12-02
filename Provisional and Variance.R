@@ -756,7 +756,7 @@ LAbymainreasongrouping <- datafile4 %>%
             gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
   ungroup()
 
-LAbysubreasongrouping <- datafile4 %>% 
+{LAbysubreasongrouping <- datafile4 %>% 
   group_by(year,month,level,areaname,age,reas2) %>% 
   summarise(totpats=sum(totpats,na.rm=TRUE),Delay1to3days=sum(Delay1to3days,na.rm=TRUE),
             Delay3to14days=sum(Delay3to14days,na.rm=TRUE),Delay2to4weeks=sum(Delay2to4weeks,na.rm=TRUE),
@@ -767,7 +767,7 @@ LAbysubreasongrouping <- datafile4 %>%
             DelayOver6wks=sum(DelayOver6wks,na.rm=TRUE),DelayOver4wks=sum(DelayOver4wks,na.rm=TRUE),
             DelayOver2wks=sum(DelayOver2wks,na.rm=TRUE), acute=sum(acute,na.rm=TRUE),
             gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
-  ungroup()
+  ungroup()}
 
 #add files together
 
@@ -797,7 +797,7 @@ ScotHBLAallages<- datafile6 %>%
             gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
   ungroup()
 
-ScotHBLAallreasonexcHSCPatFamtotal<-rbind(datafile6,ScotHBLAallages)
+ScotHBLAallreasonexcHSCPatFamtotal<-bind_rows(Scot_HB_LA,ScotHBLAallages)
 table(datafile6$reas1)
 
 #Calculate total number of delays excluding code9s.
@@ -838,7 +838,8 @@ ScotHBLAallreasonsalldelaystotal<- datafile8 %>%
   ungroup()
 
 #add files
-
+CensusdataPROVISIONALforVARIANCETABLES<-
+  rbind(ScotHBLAallreasonsalldelaystotal,ScotHBLAallreasonsincHSCPatFamtotal,ScotHBLAallreasonexcHSCPatFamtotal)
 
 
 ### END OF SCRIPT ###
