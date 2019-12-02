@@ -798,7 +798,7 @@ ScotHBLAallages<- datafile6 %>%
   ungroup()
 
 ScotHBLAallreasonexcHSCPatFamtotal<-bind_rows(Scot_HB_LA,ScotHBLAallages)
-table(datafile6$reas1)
+table(ScotHBLAallreasonexcHSCPatFamtotal$reas1)
 
 #Calculate total number of delays excluding code9s.
 datafile7<-filter(datafile6, reas1%in%c("Health and Social Care Reasons","Patient/Carer/Family-related reasons"))
@@ -839,7 +839,7 @@ ScotHBLAallreasonsalldelaystotal<- datafile8 %>%
 
 #add files
 CensusdataPROVISIONALforVARIANCETABLES<-
-  rbind(ScotHBLAallreasonsalldelaystotal,ScotHBLAallreasonsincHSCPatFamtotal,ScotHBLAallreasonexcHSCPatFamtotal)
+  bind_rows(ScotHBLAallreasonsalldelaystotal,ScotHBLAallreasonsincHSCPatFamtotal,ScotHBLAallreasonexcHSCPatFamtotal)
 
 
 ### END OF SCRIPT ###
