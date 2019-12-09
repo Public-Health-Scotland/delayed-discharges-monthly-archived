@@ -34,6 +34,7 @@ library(tidyverse)
 library(janitor)
 library(haven)
 library(stats)
+library(xlsx)
 devtools::install_github("Health-SocialCare-Scotland/phimethods")
 
 ### 1.Filepaths for latest month
@@ -141,7 +142,7 @@ datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="29"] <- "South Lanarks
 datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="30"] <- "Stirling"
 datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="31"] <- "West Lothian"
 datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="32"] <- "Comhairle nan Eilean Siar"
-datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="90"] <- "Unknown"
+datafile$LocalAuthorityArea[datafile$LocalAuthorityArea=="90"] <- "Other"
 
 View(datafile$CHINo)
 # Issue is that there some CHINo with 9 length and some with 10 length
@@ -840,6 +841,202 @@ ScotHBLAallreasonsalldelaystotal<- datafile8 %>%
 #add files
 CensusdataPROVISIONALforVARIANCETABLES<-
   bind_rows(ScotHBLAallreasonsalldelaystotal,ScotHBLAallreasonsincHSCPatFamtotal,ScotHBLAallreasonexcHSCPatFamtotal)
+
+CensusdataPROVISIONALforVARIANCETABLES<-select(CensusdataPROVISIONALforVARIANCETABLES,-meandelay,-mediandelay,-reas2)
+
+write_sav(CensusdataPROVISIONALforVARIANCETABLES,paste0(filepath,"Census data PROVISIONAL for VARIANCE Tables_R.sav"))
+
+write.xlsx(CensusdataPROVISIONALforVARIANCETABLES,paste0(filepath,"Census data PROVISIONAL for VARIANCE Tables_R.xlsx"))
+
+#Get filespath+SCOTLAND_PROVISIONAL_TEMP.SAV
+
+datafile11<-read_spss(paste0(filepath,"SCOTLAND_PROVISIONAL_TEMP_R.sav"))
+
+datafile11<-datafile11 %>% mutate(hbname=substring(hbname, 5)) # change hbname and remove the 'NHS_'
+
+hbbeddaysdiffage<- datafile11 %>% 
+  group_by(hbname,age,reas1) %>% 
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE)) %>% 
+  ungroup()
+
+
+write_sav(hbbeddaysdiffage,paste0(filepath,"hb bed days diff age_R.sav")) # save out file
+
+labeddaysdiffage<- datafile11 %>% 
+  group_by(la,age,reas1) %>% 
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE)) %>% 
+  ungroup()
+
+
+write_sav(labeddaysdiffage,paste0(filepath,"la bed days diff age_R.sav")) # save out file
+
+datafile12<-datafile11 %>% mutate(hbname="Scotland")
+
+Scotbeddaysdiffage<- datafile12 %>% 
+  group_by(hbname,age,reas1) %>% 
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE)) %>% 
+  ungroup()
+
+
+write_sav(Scotbeddaysdiffage,paste0(filepath,"Scot bed days diff age_R.sav")) # save out file
+
+datafile13<-rbind(Scotbeddaysdiffage,hbbeddaysdiffage)
+
+datafile13<-datafile13 %>% mutate(age="All")
+
+Scotlandhbbeddays<- datafile13 %>% 
+  group_by(hbname,age,reas1) %>% 
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE)) %>% 
+  ungroup()
+
+datafile14<-rbind(Scotlandhbbeddays,Scotbeddaysdiffage,hbbeddaysdiffage)
+
+write_sav(datafile14,paste0(filepath,"Scot and hb bed days_R.sav")) # save out file
+
+datafile15<-datafile14 %>% mutate(reas1="All")
+
+ScotlandhbAllagesbeddays<- datafile15 %>% 
+  group_by(hbname,age,reas1) %>% 
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE)) %>% 
+  ungroup()
+
+datafile16<-rbind(ScotlandhbAllagesbeddays,datafile14)
+
+write_sav(datafile16,paste0(filepath,"Scot and hb bed days all ages all reasons.sav")) # save out file
+
+datafile17<-labeddaysdiffage %>% mutate(age="All")
+
+labeddaysallages<- datafile17 %>% 
+  group_by(la,age,reas1) %>% 
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE)) %>% 
+  ungroup()
+
+datafile18<-rbind(labeddaysallages,labeddaysdiffage)
+
+write_sav(datafile18,paste0(filepath,"la bed days.sav")) # save out file
+
+datafile19<-datafile18 %>% mutate(reas1="All")
+
+labeddaysallreas1<- datafile19 %>% 
+  group_by(la,age,reas1) %>% 
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE)) %>% 
+  ungroup()
+
+datafile20<-rbind(labeddaysallreas1,datafile18)
+
+write_sav(datafile20,paste0(filepath,"la bed days all ages all reasons.sav")) # save out file
+
+#match in to HB data sheet format
+
+hbbbedstemplate<-read_spss(paste0(filepath,"hb bed days template.sav"))
+
+hbbbedstemplate<-hbbbedstemplate%>% mutate(hbname=toupper(hbname)) # convert to uppercase to match the existing files format
+
+datafile16<-datafile16%>% mutate(hbname=toupper(hbname)) # convert to uppercase to match the existing files format
+#Using a full join as we need the Standard back with blanks too
+
+datafile21 <- full_join(datafile16, hbbbedstemplate,
+                      by = c(("hbname" = "hbname"), ("age"="age"),("reas1"="reas1")))
+
+arrange(datafile21,hbname,age,reas1) # arrange data in order for tables
+
+write_sav(datafile21,paste0(filepath,"hb bed days data sheet minus standard.sav")) # save out file
+
+#Add in total for Standard
+
+datafile22<-datafile21 %>% mutate(reas1=
+                                    if_else(reas1%in%c("Health and Social Care Reasons","Patient/Carer/Family-related reasons"),"Standard",reas1))
+table(datafile22$reas1)
+
+#select standard only.
+datafile23<-filter(datafile22,reas1=="Standard")
+# aggregate 
+
+datafile24<- datafile23 %>% 
+  group_by(hbname,age,reas1) %>% 
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE)) %>% 
+  ungroup()
+
+
+datafile24<-datafile24%>%rename(OBDs2=OBDs_intheMonth)
+
+         
+#match files
+datafile25 <- full_join(datafile24, datafile21,
+                        by = c(("hbname" = "hbname"), ("age"="age"),("reas1"="reas1")))
+
+datafile25<-datafile25 %>% mutate(OBDs_intheMonth=
+                                  if_else(is.na(OBDs2),OBDs_intheMonth,OBDs2))
+
+#delete OBDs2.
+datafile25<-select(datafile25,-OBDs2)
+
+datafile25<-arrange(datafile25,hbname,age,reas1) # arrange data in order for tables
+
+
+write_sav(datafile25,paste0(filepath,"bed days data sheet HB provisional_R.sav")) # save out file
+
+write.xlsx(datafile25,paste0(filepath,"bed days data sheet HB provisional_R.xlsx")) # save out xlsx file
+
+
+#################################
+#LA
+#################################
+
+#match in to LA data sheet format
+
+LAbedstemplate<-read_spss(paste0(filepath,"la bed days template.sav"))
+
+LAbedstemplate<-LAbedstemplate%>% mutate(la=toupper(la)) # convert to uppercase to match the existing files format
+
+datafile20<-datafile20%>% mutate(la=toupper(la)) # convert to uppercase to match the existing files format
+
+datafile20$la[datafile20$la=="Unknown"] <- "Other"
+
+#Using a full join as we need the Standard back with blanks too
+
+datafile26 <- full_join(datafile20, LAbedstemplate,
+                        by = c(("la" = "la"), ("age"="age"),("reas1"="reas1")))
+
+datafile26<-arrange(datafile26,la,age,reas1) # arrange data in order for tables
+
+write_sav(datafile26,paste0(filepath,"la bed days data sheet minus standard.sav")) # save out file
+
+#Add in total for Standard
+
+datafile27<-datafile26 %>% mutate(reas1=
+                                    if_else(reas1%in%c("Health and Social Care Reasons","Patient/Carer/Family-related reasons"),"Standard",reas1))
+table(datafile27$reas1)
+
+#select standard only.
+datafile28<-filter(datafile27,reas1=="Standard")
+# aggregate 
+
+datafile29<- datafile28 %>% 
+  group_by(la,age,reas1) %>% 
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE)) %>% 
+  ungroup()
+
+
+datafile29<-datafile29%>%rename(OBDs2=OBDs_intheMonth)
+
+
+#match files
+datafile30 <- full_join(datafile29, datafile26,
+                        by = c(("la" = "la"), ("age"="age"),("reas1"="reas1")))
+
+datafile30<-datafile30 %>% mutate(OBDs_intheMonth=
+                                    if_else(is.na(OBDs2),OBDs_intheMonth,OBDs2))
+
+#delete OBDs2.
+datafile30<-select(datafile30,-OBDs2)
+
+datafile30<-arrange(datafile30,la,age,reas1) # arrange data in order for tables
+
+
+write_sav(datafile30,paste0(filepath,"bed days data sheet LA provisional_R.sav")) # save out file
+
+write.xlsx(datafile30,paste0(filepath,"bed days data sheet LA provisional_R.xlsx")) # save out xlsx file
 
 
 ### END OF SCRIPT ###
