@@ -430,6 +430,25 @@ if_else(DateDischarge>=censusdate & REASONFORDELAY!="100" & REASONFORDELAYSECOND
 table(datafile$CENSUSFLAG) #Matches syntax at this point 1586 v 1585 - one extra record is at census point for N465R )
 table(datafile$Healthboard)
 
+#Add in variable CensusDatePlus3WorkingDays
+datafile<-datafile%>% mutate(CensusDatePlus3WorkingDays=censusdate+5)
+
+#Flag those with a dischargedate le CensusDatePlus3WorkingDays
+
+datafile<-datafile %>% mutate(Dischargewithin3daysCensus=
+                                if_else(CENSUSFLAG=="Y" & DateDischarge<=CensusDatePlus3WorkingDays & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",""))
+
+
+#change "Y" to a count for DischargeWithin3Days
+datafile$Dischargewithin3daysCensus[datafile$Dischargewithin3daysCensus=="Y"] <- 1
+datafile$Dischargewithin3daysCensus[datafile$Dischargewithin3daysCensus==""] <- 0
+datafile$Dischargewithin3daysCensus[is.na(datafile$Dischargewithin3daysCensus)] <- 0
+
+
+datafile<-datafile %>% mutate(Dischargewithin3daysCensus=as.numeric(Dischargewithin3daysCensus)) # change variable to numeric
+
+datafile_check<-datafile %>% filter(datafile$Dischargewithin3daysCensus==1 & is.na(datafile$CENSUSFLAG))
+
 
 
 #datafile2<-datafile %>% filter(HealthLocationCode=="N465R") 
@@ -485,14 +504,13 @@ table(datafile$NoofPatients) #3790 matches.
 write_sav(datafile,paste0(filepath,"scotland_temp.sav"))
 table(datafile$REASONFORDELAYSECONDARY) # checking to see if there are any 26X or 46X
 
-datafile2 <- filter(datafile, REASONFORDELAY!="100" & CENSUSFLAG=="Y")
+datafile2 <- filter(datafile, REASONFORDELAY!="100" & (CENSUSFLAG=="Y" |DischargeWithin3daysCensus==1))
 table(datafile2$REASONFORDELAYSECONDARY) # checking to see if there are any 26X or 46X
 
-         
 
 #aggregate
 Census_hb <- datafile2 %>% 
-  group_by(Healthboard, REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check) %>% 
+  group_by(Healthboard, DischargeWithin3daysCensus, REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check) %>% 
   summarise(CensusTotal = sum(NoofPatients)) %>%
   ungroup()
 glimpse(Census_hb) # matches syntax output
@@ -501,7 +519,7 @@ head(Census_hb,42)
 
 #aggregate at LA level
 Census_LA <- datafile2 %>% 
-  group_by(Healthboard, LocalAuthorityArea, REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check) %>% 
+  group_by(Healthboard, LocalAuthorityArea, DischargeWithin3daysCensus, REASONCODEGROUPINGSHIGHLEVELPOSTJULY2016_Check) %>% 
   summarise(CensusTotal = sum(NoofPatients)) %>%
   ungroup()
 glimpse(Census_LA) # matches syntax output
