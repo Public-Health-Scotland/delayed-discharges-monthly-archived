@@ -16,34 +16,9 @@
 
 ### 1.Housekeeping ----
 
-
-#install.packages("janitor")
-#install.packages("openxlsx")
-#install.packages("here")
-
-library(readxl)
-library(here)
-library(dplyr)
-library(tidyr)
-library(haven)
-library(lubridate)
-library(stringr)
-library(openxlsx)
-library(tidyverse)
-library(janitor)
-library(stringi)
-
 # Define filepaths - move into 'set up environment' script.
 
 filepath<-("//conf/delayed_discharges/RAP development/2019_07/Outputs/")
-
-censusdate <- ("25/07/2019")
-
-#first date of month
-firstdom <- ("01/07/2019")
-
-#last date of the month
-lastdom <- ("31/07/2019")
 
 
 # Manual steps:

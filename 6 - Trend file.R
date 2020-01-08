@@ -14,31 +14,10 @@
 ##########################################################
 
 
-### 1.Housekeeping ----
-# This section should be the only section of the script which requires manual changes 
-# for future updates and includes:
-#   loading packages
-#   setting filepaths and extract dates
-#   functions (defined here or sourced from another file)
-#   setting plot parameter
-#   specifying codes (e.g. ICD-10 codes)
-
-library(readxl)
-library(here)
-library(dplyr)
-library(tidyr)
-library(haven)
-library(lubridate)
-library(stringr)
-library(openxlsx)
-library(tidyverse)
-library(janitor)
-
-
 #filename for latest month needs to be manually updated - can we automate this somehow?
 
 
-### 2.Get Scotland_validated file for latest month ----
+### 1.Get Scotland_validated file for latest month ----
 
 # Read in file
 datafile <-
@@ -101,7 +80,7 @@ temp1 <-
   
 write_sav(temp1, "/conf/delayed_discharges/RAP development/2019_07/Data/scotland/temp2.sav")
 
-### 3.Add latest monthly file to current trend file ----
+### 2.Add latest monthly file to current trend file ----
 
 # Add files together to update trend file
 
@@ -133,7 +112,7 @@ write_sav(updated_trend, "/conf/delayed_discharges/RAP development/2019_07/Outpu
 
 write.xlsx(updated_trend,"/conf/delayed_discharges/RAP development/2019_07/Outputs/TrendFile_JUL16-JUL19_R.xlsx")
 
-### 4.Checks ----
+### 3.Checks ----
 
 monthflag_cennum_patients <- updated_trend %>% 
   group_by(cennum,MONTHFLAG) %>% 
