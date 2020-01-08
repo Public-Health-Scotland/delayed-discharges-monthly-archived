@@ -36,8 +36,8 @@ filepath<-("//conf/delayed_discharges/RAP development/2019_07/Outputs/")
 datafile<-read_spss(paste0(filepath,"Allboards_R.sav"))
 
 # Create variable with first / last day of month value (defined above).
-datafile <- mutate(datafile, firstdom=firstdom)
-datafile <- mutate(datafile, lastdom=lastdom)
+datafile <- mutate(datafile, first_dom=first_dom)
+datafile <- mutate(datafile, last_dom=last_dom)
 
 # Check and recode any cases with missing monthflag
 datafile$monthflag[is.na(datafile$monthflag)] <- "Jul-19"
@@ -242,15 +242,15 @@ unique(datafile$RDDsameasDD)
 datafile <- filter(datafile, RDDsameasDD = 0)
 datafile <- select(datafile, -RDDsameasDD)
 
-#2. Remove any records where Ready for Discharge Date = Last Day of Month (LastDoM) - these do not become delays until the 1st of the following month.
-datafile <- mutate(datafile, RDDsameasLastDoM = case_when(date_declared_medically_fit == lastdom ~ 1))
+#2. Remove any records where Ready for Discharge Date = Last Day of Month (last_dom) - these do not become delays until the 1st of the following month.
+datafile <- mutate(datafile, RDDsameaslast_dom = case_when(date_declared_medically_fit == last_dom ~ 1))
 
 # Check how many
-unique(datafile$RDDsameasLastDoM)
+unique(datafile$RDDsameaslast_dom)
 
 # Remove zero delays & delete variable
-datafile <- filter(datafile, RDDsameasLastDoM = 0)
-datafile <- select(datafile, -RDDsameasLastDoM)
+datafile <- filter(datafile, RDDsameaslast_dom = 0)
+datafile <- select(datafile, -RDDsameaslast_dom)
 
 ### 4.Derivations ----
 
@@ -330,7 +330,7 @@ datafile$delay_description[datafile$dd_code_1=="9" & datafile$dd_code_2=="51X"] 
 datafile$delay_description[datafile$dd_code_1=="9" & datafile$dd_code_2=="71X"] <- "Patient exercising statutory right of choice – interim placement is not possible or reasonable"
 
 # Create census flag
-datafile <- mutate(datafile, Census_Date=censusdate) %>% 
+datafile <- mutate(datafile, Census_Date=census_date) %>% 
   mutate(datafile, Census_Date = as.character (Census_Date))
 
 datafile$Census_Date <- dmy(datafile$Census_Date)
@@ -352,16 +352,16 @@ datafile <- datafile %>%
   
 # *1/ Identify Census Date + 3 working days:
 datafile <- datafile %>% 
-  mutate(datafile, CensusDate_Plus3WorkingDays = censusdate + 5) 
+  mutate(datafile, census_date_Plus3WorkingDays = census_date + 5) 
 
-datafile$CensusDate_Plus3WorkingDays <- dmy(datafile$CensusDate_Plus3WorkingDays)
+datafile$census_date_Plus3WorkingDays <- dmy(datafile$census_date_Plus3WorkingDays)
 
-# *2/Flag those with a discharge date le CensusDate_Plus3WorkingDays and check against BO variable CENSUSDISCHARGEWITHIN3WORKINGDAYS.
+# *2/Flag those with a discharge date le census_date_Plus3WorkingDays and check against BO variable CENSUSDISCHARGEWITHIN3WORKINGDAYS.
 
 datafile <- datafile %>% 
   mutate(Dischargewithin3daysCensus=
            case_when(
-             CENSUSFLAG=="Y" & discharge_date < CensusDate_Plus3WorkingDays& dd_code_1 != "100" & dd_code_2 != "26X" | dd_code_2!= "46X" ~ "Y"
+             CENSUSFLAG=="Y" & discharge_date < census_date_Plus3WorkingDays& dd_code_1 != "100" & dd_code_2 != "26X" | dd_code_2!= "46X" ~ "Y"
 
              
 # *Change 'Y' to count for DischargeWithin3DaysCensus.

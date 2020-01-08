@@ -62,6 +62,6 @@ census_date <- lubridate::dmy(25072019)
 first_dom <- lubridate::dmy(01072019)
 
 # Last date of the month
-lastdom <- lubridate::dmy(31072019)
+last_dom <- lubridate::dmy(31072019)
 
 ### END OF SCRIPT ###
