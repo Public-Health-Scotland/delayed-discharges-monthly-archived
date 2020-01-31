@@ -278,8 +278,7 @@ datafile$DateDischarge<-format(as.Date(datafile$DateDischarge,"%d/%m/%Y"),"%Y/%m
 datafile$PatientDOB<-format(as.Date(datafile$PatientDOB,"%d/%m/%Y"),"%Y/%m/%d")
 monthstart<-format(as.Date(monthstart,"%d/%m/%Y"),"%Y/%m/%d")
 monthend<-format(as.Date(monthend,"%d/%m/%Y"),"%Y/%m/%d")
-
-
+#test commit works 
 
 
 
@@ -419,12 +418,17 @@ table(datafile$REASONFORDELAY)
 table(datafile$REASONFORDELAYSECONDARY)
 #Flag Local Codes
 datafile<-datafile %>%  mutate(query_LocalCode=
-                    if_else(REASONFORDELAY%!in%c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
-                        "25A","25D","25E","25F","43","51","52","61","67","71","72","73","74","44"," ","9","09","41","100","24DX","24EX","25X","51X","71X","26X","46X")|
-                          REASONFORDELAYSECONDARY%!in%c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
-                                                        "25A","25D","25E","25F","43","51","52","61","67","71","72","73",
-                                                        "74","44"," ","NA","9","09","41","100","24DX","24EX","25X","51X",
-                                                        "71X","26X","46X"),"Y"," "))
+                                 if_else(
+                                   !(REASONFORDELAY %in% c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
+                                                           "25A","25D","25E","25F","43","51","52","61","67","71","72","73",
+                                                           "74","44"," ","9","09","41","100")) |
+                                     (!is.na(REASONFORDELAYSECONDARY) & 
+                                        !(REASONFORDELAYSECONDARY %in% c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
+                                                                         "25A","25D","25E","25F","43","51","52","61","67","71","72","73",
+                                                                         "74","44"," ","9","09","41","100","24DX", "24EX","25X","51X","71X",
+                                                                         "26X","46X"))),
+                                   "Y"," "))
+
 table(datafile$query_LocalCode)
 #update query flags for blanks
 
@@ -612,7 +616,7 @@ table(datafile$query_MissingDateRefRec_11A) # None
 table(datafile$query_MissingDischDate) # None
 table(datafile$query_MissingDischReas) # check 182
 
-#select if query is showing
+#select if query is showing  
 query_list<-datafile %>% filter(datafile$query=="Y")
 
 query_list2 = subset(query_list, select = c(Monthflag, Census_Date, Healthboard, HealthLocationCode, LocalAuthorityArea,
