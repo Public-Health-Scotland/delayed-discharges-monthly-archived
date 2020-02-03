@@ -334,7 +334,7 @@ datafile<-datafile %>% dplyr::mutate(flag_pc=if_else(PatientPostcode %in% Postco
 
 #create new flag for any invalid postcodes
 datafile<-datafile %>% mutate(query_PCodeInvalid=
-                                if_else(flag_pc==0,"Y"," "))
+                                if_else(flag_pc==1," ","Y"))
 
 
 # raed in specialty file
@@ -401,17 +401,17 @@ datafile<-datafile %>%  mutate(query_Reas1endsX=
 
 #If Reas1<>Code 9, ensure Reas2=blank 
 
-datafile<-datafile %>%  mutate(query_Reas2invalid=
+datafile<-datafile %>%  mutate(query_Reas2Invalid=
                                  if_else(REASONFORDELAY!="9" & REASONFORDELAYSECONDARY!=" ","Y"," "))
 
 #If Reas1=Code 9, Reas2 cannot be blank 
 
-datafile<-datafile %>%  mutate(query_Reas2invalid=
+datafile<-datafile %>%  mutate(query_Reas2Invalid=
                                  if_else(REASONFORDELAY=="9" & REASONFORDELAYSECONDARY!=" ","Y"," "))
 
 #If Reas1=Code 9, Reas2 must end with 'X'
 
-datafile<-datafile %>%  mutate(query_Reas2invalid=
+datafile<-datafile %>%  mutate(query_Reas2Invalid=
                         if_else(REASONFORDELAY=="9" & str_ends(REASONFORDELAYSECONDARY,"X")=="FALSE","Y"," "))
 
 table(datafile$REASONFORDELAY)
@@ -581,7 +581,7 @@ datafile<-datafile %>% mutate(query=
                     if_else(query_Month=="Y"|query_location=="Y"| query_CHI=="Y"|query_LA=="Y"
                             | query_PCode=="Y"| query_PCodeInvalid=="Y"|query_Gender=="Y"| query_Spec=="Y"
                             | query_SpecInvalid=="Y"| query_RDD=="Y"|query_Reas1=="Y"| query_AdmDate=="Y"| query_CHI_DOB=="Y"
-                            | query_LocalCode=="Y"| query_DiscontinuedCode=="Y"| query_Reas1endsX=="Y"| query_Reas2invalid=="Y"
+                            | query_LocalCode=="Y"| query_DiscontinuedCode=="Y"| query_Reas1endsX=="Y"| query_Reas2Invalid=="Y"
                             | query_RDDltAdmDate=="Y"| query_DischDateltRDD=="Y"| query_DischDateltAdmDate=="Y"|query_MissingDischReas=="Y"| query_MissingDischDate=="Y"
                             | query_DischReasInvalid=="Y"| query_OverlappingDates=="Y"| query_DuplicateCHI_Census=="Y"| query_OBDle0=="Y"
                             | query_MissingDateRefRec_11A=="Y","Y"," "))
@@ -603,7 +603,7 @@ table(datafile$query_CHI_DOB) # None
 table(datafile$query_LocalCode) # 448 - Check
 table(datafile$query_DiscontinuedCode) # None
 table(datafile$query_Reas1endsX)  # None
-table(datafile$query_Reas2invalid)
+table(datafile$query_Reas2Invalid)
 table(datafile$query_RDDltAdmDate) # None
 table(datafile$query_DischDateltRDD) # None
 table(datafile$query_DischDateltAdmDate) # None
@@ -616,18 +616,131 @@ table(datafile$query_MissingDateRefRec_11A) # None
 table(datafile$query_MissingDischDate) # None
 table(datafile$query_MissingDischReas) # check 182
 
-#select if query is showing  
+#select if query is showing  - May not need this as it selects out all rows
 query_list<-datafile %>% filter(datafile$query=="Y")
+
+#Note: No query_HospInBoard, query_DoB or query_Reas2noCode9 queries generated previously so ignored in next command.
 
 query_list2 = subset(query_list, select = c(Monthflag, Census_Date, Healthboard, HealthLocationCode, LocalAuthorityArea,
                                             PatientPostcode, DuplicateCHI, CHINo, PatientDOB, SpecialtyCode, CENSUSFLAG,
                                             OriginalAdmissionDate, DateReferralReceived, Readyfordischargedate, DateDischarge,
                                             DischargeReason, REASONFORDELAY, REASONFORDELAYSECONDARY, Outofareacaseindicator, 
-                                            query_Month, query_location, query_HospInBoard, query_CHI, query_LA, query_PCode, 
-                                            query_PCodeInvalid, query_DOB, query_Gender, query_Spec, query_SpecInvalid, 
-                                            query_RDD, query_Reas1, query_AdmDate, query_CHI_DoB, query_LocalCode, 
-                                            query_DiscontinuedCode, query_Reas1endsX, query_Reas2noCode9, query_Reas2Invalid, 
+                                            query_Month, query_location, query_CHI, query_LA, query_PCode, 
+                                            query_PCodeInvalid, query_Gender, query_Spec, query_SpecInvalid, 
+                                            query_RDD, query_Reas1, query_AdmDate, query_CHI_DOB, query_LocalCode, 
+                                            query_DiscontinuedCode, query_Reas1endsX, query_Reas2Invalid, 
                                             query_RDDltAdmDate, query_DischDateltRDD, query_DischDateltAdmDate, query_MissingDischReas, 
                                             query_MissingDischDate, query_DischReasInvalid, query_OverlappingDates, query_DuplicateCHI_Census, 
                                             query_OBDle0, query_MissingDateRefRec_11A, NoofPatients) )
+
+write_sav(query_list2,paste0(filepath,Healthboard,"_Query_List.sav"))
+write.xlsx(query_list2,paste0(filepath,Healthboard,"_Query_List.xlsx"))
+# isn't saving out a blank file as no errors!
+# If no Query_List.xlsx shows up this means there are no queries.
+
+
+#recode query_Month TO query_MissingDateRefRec_11A where 'Y' becomes 1.
+#need to get number of column for query_Month and query_MissingDateRefRec_11A ( 41 to 47 )
+
+grep("query_CHI_DOB", colnames(datafile))
+grep("query_OverlappingDates", colnames(datafile))
+
+datafile[ ,36:66][datafile[ , 36:66] == "Y"] <- as.numeric(1)
+
+datafile<-datafile %>% mutate(query_Reas1=as.numeric(query_Reas1))
+datafile<-datafile %>% mutate(query_AdmDate=as.numeric(query_AdmDate))
+
+
+#above includes alter type query_Month TO query_MissingDateRefRec_11A ( string becomes a numeric)
+typeof(datafile$query_Reas1)
+#aggregate file
+
+datafile2 <- datafile %>% 
+  group_by(Healthboard, Monthflag) %>% 
+  summarise(query_Month = sum(as.numeric(query_Month)),
+            query_location=sum(as.numeric(query_location)),
+            query_CHI=sum(as.numeric(query_CHI)),
+            query_LA=sum(as.numeric(query_LA)),
+            query_PCode=sum(as.numeric(query_PCode)),
+            query_PCodeInvalid=sum(as.numeric(query_PCodeInvalid)),
+            query_Gender=sum(as.numeric(query_Gender)),
+            query_Spec=sum(as.numeric(query_Spec)),
+            query_SpecInvalid=sum(as.numeric(query_SpecInvalid)),
+            query_RDD=sum(as.numeric(query_RDD)),
+            query_Reas1=sum(as.numeric(query_Reas1)),
+            query_AdmDate=sum(as.numeric(query_AdmDate)),
+            query_CHI_DOB=sum(as.numeric(query_CHI_DOB)),
+            query_LocalCode=sum(as.numeric(query_LocalCode)),
+            query_DiscontinuedCode=sum(as.numeric(query_DiscontinuedCode)),
+            query_Reas1endsX=sum(as.numeric(query_Reas1endsX)),
+            query_Reas2Invalid=sum(as.numeric(query_Reas2Invalid)),
+            query_RDDltAdmDate=sum(as.numeric(query_RDDltAdmDate)),
+            query_DischDateltRDD=sum(as.numeric(query_DischDateltRDD)),
+            query_DischDateltAdmDate=sum(as.numeric(query_DischDateltAdmDate)),
+            query_MissingDischReas=sum(as.numeric(query_MissingDischReas)),
+            query_MissingDischDate=sum(as.numeric(query_MissingDischDate)),
+            query_DischReasInvalid=sum(as.numeric(query_DischReasInvalid)),
+            query_OverlappingDates=sum(as.numeric(query_OverlappingDates)),
+            query_DuplicateCHI_Census=sum(as.numeric(query_DuplicateCHI_Census)),
+            query_OBDle0=sum(as.numeric(query_OBDle0)),
+            query_MissingDateRefRec_11A=sum(as.numeric(query_MissingDateRefRec_11A)))%>%
+  ungroup()
+
+
+
+
+
+#Restructure file
+
+datafile %>%
+  mutate_at(vars(starts_with(query_Month), ~ replace_na(., 0)) %>%
+              mutate(Total = purrr::reduce(select(., starts_with(query_Month)), `+`)) %>%
+              select(-starts_with(query_Month)))
+            
+
+#Provisional Census / OBD figures
+
+datafile<-read_sav(paste0(filepath,"glasgow_temp.sav"))
+
+#Create a provsional HB census total - excl. Code 100.
+
+datafile2<-datafile %>% mutate(REASONFORDELAY!="100" & (CENSUSFLAG=="Y" | Dischargewithin3daysCensus==1))
+
+Census_hb <- datafile2 %>% 
+  group_by(Healthboard, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
+  summarise(census=n()) %>% 
+  ungroup()
+
+#Create a Provisional HB/LA census total - excl Code 100.
+
+Census_la<- datafile2 %>% 
+  group_by(Healthboard, LocalAuthorityArea, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
+  summarise(census=n()) %>% 
+  ungroup()
+
+
+#Create a provisional HB OBD total - excl. Code 100.
+
+OBDs_HB<-datafile %>% mutate(REASONFORDELAY!="100") %>% 
+  group_by(Healthboard, REASONGRP_HIGHLEVEL) %>% 
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth)) %>% 
+  ungroup()
+
+#Create a provisional HB OBD total - excl. code 100.
+
+OBDs_LA<-datafile %>% mutate(REASONFORDELAY!="100") %>% 
+  group_by(Healthboard, LocalAuthorityArea, REASONGRP_HIGHLEVEL) %>% 
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth)) %>% 
+  ungroup()
+
+
+#Combine provisional census / OBD files.
+
+Prov<-bind_rows(Census_la,OBDs_HB,OBDs_LA)
+
+
+Prov$REASONGRP_HIGHLEVEL[Prov$REASONGRP_HIGHLEVEL!="Code 9"] <- "HSC/PCF"
+
+Prov<-Prov %>% mutate(Dischargewithin3daysCensus=
+                        if_else(Prov$Dischargewithin3daysCensus==1,Prov$census,Prov$Dischargewithin3daysCensus))
 
