@@ -136,6 +136,14 @@ df_missingageatrdd<-filter(datafile,is.na(datafile$AGEATRDD))
 
 table(datafile$AGEATRDD)
 
+#amend dates to same formats
+datafile$Readyfordischargedate<-format(as.Date(datafile$Readyfordischargedate,"%d/%m/%Y"),"%Y/%m/%d")
+datafile$OriginalAdmissionDate<-format(as.Date(datafile$OriginalAdmissionDate,"%d/%m/%Y"),"%Y/%m/%d")
+datafile$DateDischarge<-format(as.Date(datafile$DateDischarge,"%d/%m/%Y"),"%Y/%m/%d")
+datafile$PatientDOB<-format(as.Date(datafile$PatientDOB,"%d/%m/%Y"),"%Y/%m/%d")
+monthstart<-format(as.Date(monthstart,"%d/%m/%Y"),"%Y/%m/%d")
+monthend<-format(as.Date(monthend,"%d/%m/%Y"),"%Y/%m/%d")
+
 
 #Keep only hospital locations or N465R (in Grampian)
 datafile<-datafile%>% 
@@ -243,9 +251,9 @@ datafile<-datafile%>% mutate(CensusDatePlus3WorkingDays=Census_Date+5)
 #Flag those with a dischargedate le CensusDatePlus3WorkingDays
 
 datafile<-datafile %>% mutate(Dischargewithin3daysCensus=
-                                if_else(CENSUSFLAG=="Y" & DateDischarge<=CensusDatePlus3WorkingDays & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",""))
+                                if_else(CENSUSFLAG=="Y" & DateDischarge<=CensusDatePlus3WorkingDays & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y"," "))
 
-
+table (datafile$Dischargewithin3daysCensus)
 #change "Y" to a count for DischargeWithin3Days
 datafile$Dischargewithin3daysCensus[datafile$Dischargewithin3daysCensus=="Y"] <- 1
 datafile$Dischargewithin3daysCensus[datafile$Dischargewithin3daysCensus==""] <- 0
@@ -253,7 +261,7 @@ datafile$Dischargewithin3daysCensus[is.na(datafile$Dischargewithin3daysCensus)] 
 
 
 datafile<-datafile %>% mutate(Dischargewithin3daysCensus=as.numeric(Dischargewithin3daysCensus)) # change variable to numeric
-
+datafile$Dischargewithin3daysCensus[is.na(datafile$Dischargewithin3daysCensus)] <- 0
 datafile_check<-datafile %>% filter(Dischargewithin3daysCensus==1 & is.na(CENSUSFLAG))
 
 
@@ -272,12 +280,7 @@ datafile<-datafile %>% mutate(CurrentMonthEnd=monthend)
 #convert dates to same format 
 datafile$CurrentMonthStart<-format(as.Date(datafile$CurrentMonthStart,"%Y-%m-%d"),"%Y/%m/%d")
 datafile$CurrentMonthEnd<-format(as.Date(datafile$CurrentMonthEnd,"%Y-%m-%d"),"%Y/%m/%d")
-datafile$Readyfordischargedate<-format(as.Date(datafile$Readyfordischargedate,"%d/%m/%Y"),"%Y/%m/%d")
-datafile$OriginalAdmissionDate<-format(as.Date(datafile$OriginalAdmissionDate,"%d/%m/%Y"),"%Y/%m/%d")
-datafile$DateDischarge<-format(as.Date(datafile$DateDischarge,"%d/%m/%Y"),"%Y/%m/%d")
-datafile$PatientDOB<-format(as.Date(datafile$PatientDOB,"%d/%m/%Y"),"%Y/%m/%d")
-monthstart<-format(as.Date(monthstart,"%d/%m/%Y"),"%Y/%m/%d")
-monthend<-format(as.Date(monthend,"%d/%m/%Y"),"%Y/%m/%d")
+
 #test commit works 
 
 
@@ -563,7 +566,7 @@ table(datafile$query_OverlappingDates)
 datafile<-arrange(datafile,CHINo,OriginalAdmissionDate,Readyfordischargedate,DateDischarge)
 
 #compute Noofpatients=1
-datafile$Noofpatients==1
+datafile$NoofPatients==1
 
 #table(datafile$NoofPatients)
 
@@ -720,6 +723,8 @@ Census_la<- datafile2 %>%
 
 
 #Create a provisional HB OBD total - excl. Code 100.
+datafile$OBDs_intheMonth[is.na(datafile$OBDs_intheMonth)] <- 0 # Need to change NA to 0 before aggregate
+
 
 OBDs_HB<-datafile %>% mutate(REASONFORDELAY!="100") %>% 
   group_by(Healthboard, REASONGRP_HIGHLEVEL) %>% 
@@ -741,6 +746,34 @@ Prov<-bind_rows(Census_la,OBDs_HB,OBDs_LA)
 
 Prov$REASONGRP_HIGHLEVEL[Prov$REASONGRP_HIGHLEVEL!="Code 9"] <- "HSC/PCF"
 
+#Rename variable
+
+Prov <- Prov %>% 
+  rename(DelayCategory = REASONGRP_HIGHLEVEL)
+         
+
+# Need to amend the NA in Dischargewithin3daysCensus and census to ensure it works in line 751 - 752.
+Prov$Dischargewithin3daysCensus[is.na(Prov$Dischargewithin3daysCensus)] <- 0
+Prov$census[is.na(Prov$census)] <- 0
+
 Prov<-Prov %>% mutate(Dischargewithin3daysCensus=
-                        if_else(Prov$Dischargewithin3daysCensus==1,Prov$census,Prov$Dischargewithin3daysCensus))
+                        if_else(Dischargewithin3daysCensus==1,census,Dischargewithin3daysCensus))
+
+
+#Now set census value to 0 if there is a value in Dischargewithin3dayscensus column.
+
+Prov<-Prov %>% mutate(census=
+                        if_else(Dischargewithin3daysCensus>0,0,census))
+#rename census as CensusTotal
+Prov <- Prov %>% 
+  rename(CensusTotal = census)
+
+#aggregate 
+
+ProvCensusOBD<-Prov %>% 
+  group_by(Healthboard, LocalAuthorityArea, DelayCategory) %>% 
+  summarise(Dischargewithin3daysCensus=sum(Prov$Dischargewithin3daysCensus)) %>% 
+  summarise(CensusTotal=sum(Prov$CensusTotal)) %>% 
+  summarise(OBDs_intheMonth=sum(Prov$OBDs_intheMonth)) %>% 
+  ungroup()
 
