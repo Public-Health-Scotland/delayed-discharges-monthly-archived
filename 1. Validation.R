@@ -157,7 +157,7 @@ datafile <- filter(datafile, is.na(DateDischarge) | Readyfordischargedate!=DateD
 
 datafile<-filter(datafile,Readyfordischargedate!=monthend)
 
-# compute Age Groupings
+# compute Age Groupings ( ensures no-one aged under 18 is selected)
 datafile<-datafile%>% mutate(AgeGrouping=
                     if_else(AGEATRDD<75, "18-74",
                     if_else(AGEATRDD>=75, "75+", " ")))
@@ -242,6 +242,7 @@ datafile<-datafile %>% mutate(CENSUSFLAG=
           if_else(DateDischarge==Readyfordischargedate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in% c("26X","46X"),"",
           if_else(DateDischarge>=Census_Date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"",""))))))
 
+table(datafile$CENSUSFLAG) # OK here 209 matches census output table publication
 #Flag those discharged up to 3 working days after census
 
 #Add in variable CensusDatePlus3WorkingDays
@@ -352,7 +353,7 @@ datafile<-datafile %>% mutate(query_SpecInvalid=
                                 if_else(flag_spec==0,"Y"," "))
 
 
-#Check data dischraged is in current month
+#Check data discharged is in current month
 
 datafile<-datafile %>%  mutate(query_Month=
                                  if_else(is.na(DateDischarge) & DateDischarge<monthstart,"Y"," "))
@@ -728,7 +729,6 @@ Census_la<- datafile3 %>%
 #Create a provisional HB OBD total - excl. Code 100.
 datafile$OBDs_intheMonth[is.na(datafile$OBDs_intheMonth)] <- 0 # Need to change NA to 0 before aggregate
 
-
 OBDs_HB<-datafile %>% mutate(REASONFORDELAY!="100") %>% 
   group_by(Healthboard, REASONGRP_HIGHLEVEL) %>% 
   summarise(OBDs_intheMonth=sum(OBDs_intheMonth)) %>% 
@@ -773,12 +773,13 @@ Prov <- Prov %>%
 
 #aggregate 
 
-ProvCensusOBD<-Prov %>% 
+ProvCensusOBD%>% 
   group_by(Healthboard, LocalAuthorityArea, DelayCategory) %>% 
-  summarise(Dischargewithin3daysCensus=sum(Prov$Dischargewithin3daysCensus)) %>% 
-  summarise(CensusTotal=sum(Prov$CensusTotal)) %>% 
-  summarise(OBDs_intheMonth=sum(Prov$OBDs_intheMonth)) %>% 
+  summarise(Dischargewithin3daysCensus=sum(Dischargewithin3daysCensus),
+            CensusTotal=sum(CensusTotal),
+            OBDs_intheMonth=sum(OBDs_intheMonth,na.rm = TRUE)) %>% 
   ungroup()
+
 
 
 
