@@ -695,10 +695,13 @@ datafile2 <- datafile %>%
 
 #Restructure file
 
-datafile %>%
-  mutate_at(vars(starts_with(query_Month), ~ replace_na(., 0)) %>%
-              mutate(Total = purrr::reduce(select(., starts_with(query_Month)), `+`)) %>%
-              select(-starts_with(query_Month)))
+datafile2 %<>%
+  pivot_longer(
+    cols = starts_with("query"),
+    names_to = "Query_Type",
+    values_to = "Total"
+  )
+
             
 
 #Provisional Census / OBD figures
@@ -707,16 +710,16 @@ datafile<-read_sav(paste0(filepath,"glasgow_temp.sav"))
 
 #Create a provsional HB census total - excl. Code 100.
 
-datafile2<-datafile %>% mutate(REASONFORDELAY!="100" & (CENSUSFLAG=="Y" | Dischargewithin3daysCensus==1))
+datafile3<-datafile %>% mutate(REASONFORDELAY!="100" & (CENSUSFLAG=="Y" | Dischargewithin3daysCensus==1))
 
-Census_hb <- datafile2 %>% 
+Census_hb <- datafile3 %>% 
   group_by(Healthboard, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
   summarise(census=n()) %>% 
   ungroup()
 
 #Create a Provisional HB/LA census total - excl Code 100.
 
-Census_la<- datafile2 %>% 
+Census_la<- datafile3 %>% 
   group_by(Healthboard, LocalAuthorityArea, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
   summarise(census=n()) %>% 
   ungroup()
@@ -776,4 +779,6 @@ ProvCensusOBD<-Prov %>%
   summarise(CensusTotal=sum(Prov$CensusTotal)) %>% 
   summarise(OBDs_intheMonth=sum(Prov$OBDs_intheMonth)) %>% 
   ungroup()
+
+
 
