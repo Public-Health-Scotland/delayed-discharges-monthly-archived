@@ -275,12 +275,12 @@ datafile$CensusDatePlus3WorkingDays<-format(as.Date(datafile$CensusDatePlus3Work
   
 
 #calculate bed days in current month
-datafile<-datafile %>% mutate(CurrentMonthStart=monthstart)
-datafile<-datafile %>% mutate(CurrentMonthEnd=monthend)
+#datafile<-datafile %>% mutate(CurrentMonthStart=monthstart)
+#datafile<-datafile %>% mutate(CurrentMonthEnd=monthend)
 
 #convert dates to same format 
-datafile$CurrentMonthStart<-format(as.Date(datafile$CurrentMonthStart,"%Y-%m-%d"),"%Y/%m/%d")
-datafile$CurrentMonthEnd<-format(as.Date(datafile$CurrentMonthEnd,"%Y-%m-%d"),"%Y/%m/%d")
+#datafile$CurrentMonthStart<-format(as.Date(datafile$CurrentMonthStart,"%Y-%m-%d"),"%Y/%m/%d")
+#datafile$CurrentMonthEnd<-format(as.Date(datafile$CurrentMonthEnd,"%Y-%m-%d"),"%Y/%m/%d")
 
 #test commit works 
 
@@ -302,17 +302,17 @@ table(datafile$DRMDInMonth)  # check that
 
 datafile<-datafile %>% mutate(OBDs_intheMonth=
                     if_else(DRMDInMonth=="Y" & DateDischargeInMonth=="Y",difftime(DateDischarge, Readyfordischargedate, units = "days"),
-                    if_else(DRMDInMonth==" " & DateDischargeInMonth=="Y",difftime(DateDischarge, CurrentMonthStart, units = "days")+1,
-                    if_else(DRMDInMonth=="Y" & DateDischargeInMonth!="Y",difftime(CurrentMonthEnd, Readyfordischargedate, units = "days"),
-                    if_else(DRMDInMonth==" " & DateDischargeInMonth!="Y",difftime(CurrentMonthEnd, CurrentMonthStart, units = "days")+1,0)))))
+                    if_else(DRMDInMonth==" " & DateDischargeInMonth=="Y",difftime(DateDischarge, monthstart, units = "days")+1,
+                    if_else(DRMDInMonth=="Y" & DateDischargeInMonth!="Y",difftime(monthend, Readyfordischargedate, units = "days"),
+                    if_else(DRMDInMonth==" " & DateDischargeInMonth!="Y",difftime(monthend, monthstart, units = "days")+1,0)))))
 
 table(datafile$DRMDInMonth)           # matches syntax output
 table(datafile$DateDischargeInMonth)  # matches syntax output 
 table(datafile$OBDs_intheMonth)      # matches syntax output
-
+table(datafile$HealthLocationCode) # Checking wh
 datafile<-datafile %>% mutate(NoofPatients=1)
 table(datafile$NoofPatients) #525
-
+table(datafile$REASONFORDELAY)
 #Create Query Flags
 
 
@@ -773,7 +773,7 @@ Prov <- Prov %>%
 
 #aggregate 
 
-ProvCensusOBD%>% 
+ProvCensusOBD<-Prov%>% 
   group_by(Healthboard, LocalAuthorityArea, DelayCategory) %>% 
   summarise(Dischargewithin3daysCensus=sum(Dischargewithin3daysCensus),
             CensusTotal=sum(CensusTotal),
