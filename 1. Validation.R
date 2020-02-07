@@ -13,13 +13,15 @@ library(haven)
 library(stats)
 library(xlsx)
 library(tidylog)
+library(magrittr)
 devtools::install_github("Health-SocialCare-Scotland/phimethods")
-
+ 
 ### 1.Filepaths for latest month
 
 filepath<-("/conf/delayed_discharges/RAP development/2019_07/Outputs/")
 filepath2<-("/conf/delayed_discharges/RAP development/2019_07/Data/glasgow/")
-
+#bring in environment 
+#
 
 censusdate<-ymd("2019/07/25")
 monthstart<-ymd("2019/07/01")
@@ -578,8 +580,7 @@ write.xlsx(datafile,paste0(filepath,"glasgow_temp.xlsx"))
 
 #Create Error file with row per CHI per ERROR
 
-datafile<-read_sav(paste0(filepath,"glasgow_temp.sav"))
-
+table(datafile$CENSUSFLAG)
 
 datafile<-datafile %>% mutate(query=
                     if_else(query_Month=="Y"|query_location=="Y"| query_CHI=="Y"|query_LA=="Y"
@@ -714,7 +715,7 @@ datafile<-read_sav(paste0(filepath,"glasgow_temp.sav"))
 
 #Create a provsional HB census total - excl. Code 100.
 
-datafile3<-datafile %>% mutate(REASONFORDELAY!="100" & (CENSUSFLAG=="Y" | Dischargewithin3daysCensus==1))
+datafile3<-datafile %>% filter(REASONFORDELAY!="100" & (CENSUSFLAG=="Y" | Dischargewithin3daysCensus==1))
 
 Census_hb <- datafile3 %>% 
   group_by(Healthboard, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
