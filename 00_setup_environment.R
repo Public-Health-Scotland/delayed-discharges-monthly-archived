@@ -16,7 +16,7 @@
 #########################################################################
 
 ### 1 - Load packages ----
-library(magrittr)     # For the %>% functionality
+library(magrittr)     # For the %<>% functionality
 library(readxl)
 library(here)         # For the here() function
 library(dplyr)        # For data manipulation in the "tidy" way
@@ -25,15 +25,15 @@ library(haven)        # For reading in SPSS files
 library(lubridate)    # For dates
 library(stringr)      # For string manipulation and matching
 library(openxlsx)     # For manipulating Excel files
-library(tidyverse)#Need all packeges?
 library(janitor)      # For 'cleaning' variable names
-library(stringi) # Where is this package used?
-library(stats)#Used by PMcC in Prov & Var - where?
-library(xlsx)#used for write.xlsx. Use openxlsx::saveWorkbook once templates are
-             #created?
 library(devtools)     # Used to install phimethods from GitHub
 
-devtools::install_github("Health-SocialCare-Scotland/phimethods")
+# Check the following  are needed
+library(stringi)      # Where is this package used?
+library(xlsx)         # used for write.xlsx. Use openxlsx::saveWorkbook once 
+                      # templates are created?
+
+devtools::install_github("Health-SocialCare-Scotland/phsmethods")
 
 
 ### 2 - Define Whether Running on Server or Locally ----
