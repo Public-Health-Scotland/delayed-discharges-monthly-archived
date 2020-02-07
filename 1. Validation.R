@@ -644,21 +644,24 @@ write.xlsx(query_list2,paste0(filepath,Healthboard,"_Query_List.xlsx"))
 
 
 #recode query_Month TO query_MissingDateRefRec_11A where 'Y' becomes 1.
-#need to get number of column for query_Month and query_MissingDateRefRec_11A ( 41 to 47 )
+#need to get number of column for query_variables( columns 36 to 65 )
 
 grep("query_CHI_DOB", colnames(datafile))
 grep("query_OverlappingDates", colnames(datafile))
 
-datafile[ ,36:66][datafile[ , 36:66] == "Y"] <- as.numeric(1)
+#recoding these queries with a 1 where there is a "Y" to enable aggregation later
+datafile[ ,34:64][datafile[ , 34:64] == "Y"] <- as.numeric(1)
 
 datafile<-datafile %>% mutate(query_Reas1=as.numeric(query_Reas1))
 datafile<-datafile %>% mutate(query_AdmDate=as.numeric(query_AdmDate))
 
 
 #above includes alter type query_Month TO query_MissingDateRefRec_11A ( string becomes a numeric)
+class(datafile$query_Reas1)
 typeof(datafile$query_Reas1)
-#aggregate file
 
+#aggregate file
+table(datafile$query_Reas1)
 datafile2 <- datafile %>% 
   group_by(Healthboard, Monthflag) %>% 
   summarise(query_Month = sum(as.numeric(query_Month)),
@@ -729,14 +732,15 @@ Census_la<- datafile3 %>%
 #Create a provisional HB OBD total - excl. Code 100.
 datafile$OBDs_intheMonth[is.na(datafile$OBDs_intheMonth)] <- 0 # Need to change NA to 0 before aggregate
 
-OBDs_HB<-datafile %>% mutate(REASONFORDELAY!="100") %>% 
+
+OBDs_HB<-datafile %>% filter(REASONFORDELAY!="100") %>% 
   group_by(Healthboard, REASONGRP_HIGHLEVEL) %>% 
   summarise(OBDs_intheMonth=sum(OBDs_intheMonth)) %>% 
   ungroup()
 
 #Create a provisional HB OBD total - excl. code 100.
 
-OBDs_LA<-datafile %>% mutate(REASONFORDELAY!="100") %>% 
+OBDs_LA<-datafile %>% filter(REASONFORDELAY!="100") %>% 
   group_by(Healthboard, LocalAuthorityArea, REASONGRP_HIGHLEVEL) %>% 
   summarise(OBDs_intheMonth=sum(OBDs_intheMonth)) %>% 
   ungroup()
@@ -781,5 +785,5 @@ ProvCensusOBD<-Prov%>%
   ungroup()
 
       
-
+   
 
