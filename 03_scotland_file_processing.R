@@ -218,9 +218,6 @@ datafile <- datafile %>%
   mutate(age_grp = case_when(age_at_rdd <75 ~ "18-74",
                              age_at_rdd >=75 ~ "75+"))
 
-count(datafile, age_grp, age_at_rdd) %>%
-  spread(age_grp, n)
-
 # Create Reason Code Groupings
 
 # 1. High level reason code grouping - post July 2016
@@ -366,26 +363,18 @@ datafile <- datafile %>%
          #   spread(census_flag, n)
          
          
-         # Calculate OBDs in the current month
-         
-         # Create variable with month start date
-         current_month_start = monthflag,
-         # Create variable with month end date (add 1 month to start date)
-         current_month_end = current_month_start %m+% months(1),
-         # Then subtract one day to get the last day of the month.
-         current_month_end = current_month_end %m-% days(1),
          
          ### 4.Next section ----
 
          # Flag whether date_declared_medically_fit in current month
          drmd_in_month = case_when(
-           date_declared_medically_fit >= current_month_start & 
-             date_declared_medically_fit <= current_month_end ~ "Y"),
+           date_declared_medically_fit >= first_dom & 
+             date_declared_medically_fit <= last_dom ~ "Y"),
          
          # Flag whether discharge date in current month
          date_discharge_in_month = case_when(
-           discharge_date >= current_month_start & 
-             discharge_date <= current_month_end ~ "Y"),
+           discharge_date >= first_dom & 
+             discharge_date <= last_dom ~ "Y"),
          
          # Now there are 2 variables which will make it easier to calculate OBDs
          # in the month.
@@ -521,20 +510,17 @@ datafile <- datafile %>%
   # DUPLICATE RECORDS
   
   #Check for duplicate CHI numbers and flag.
-  dplyr::arrange(chi_number) %>%
-  dplyr::mutate(duplicate_CHI = 
-            dplyr::if_else(chi_number == dplyr::lag(chi_number), "Y", "N")) %>%
+  dplyr::arrange(chi_number) #%>%
+  dplyr::mutate(duplicate_CHI = dplyr::if_else(
+                                          chi_number == dplyr::lag(chi_number),
+                                          "Y", "N")) %>%
   # Need to capture paired records with errors to investigate reason for 
   # duplicate - so update Error code for both
   dplyr::arrange(chi_number, desc(duplicate_CHI)) %>%
-  if(duplicate_CHI == "N" & chi_number == dplyr::lag(chi_number)) 
-    mutate(duplicate_CHI == dplyr::lag(duplicate_CHI)) %>%
+  if(duplicate_CHI == "N" & chi_number == dplyr::lag(chi_number)) mutate(duplicate_CHI == dplyr::lag(duplicate_CHI)) %>%
   # Check for duplicate CENSUS records and flag
   dplyr::arrange(chi_number, desc(census_flag)) %>%
-  dplyr::mutate (error_Duplicate_CHI_Census == 
-                   dplyr::if_else(chi_number == lag(chi_number) & 
-                                    census_flag == 'Y' & 
-                                    census_flag == lag(census_flag), "Y", "N")) %>%
+  dplyr::mutate(error_Duplicate_CHI_Census = dplyr::if_else(chi_number == lag(chi_number) & census_flag == 'Y' & census_flag == lag(census_flag), "Y", "N")) #%>%
 # unique error_DuplicateCHI_Census
   # Need to capture paired records with errors to investigate reason for 
   # duplicate - so update Error code for both..
@@ -766,8 +752,8 @@ datafile <- datafile %>%
 # dob2
 # rmddate
 # CensusDate_Plus3WorkingDays
-# CURRENT_MONTH_START
-# CURRENT_MONTH_END
+# first_dom
+# last_dom
 # drmd_in_month
 # week
 # month

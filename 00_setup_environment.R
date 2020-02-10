@@ -61,9 +61,9 @@ filepath <- paste0(plat_filepath, "delayed_discharges/RAP development/2019_07/Ou
 census_date <- lubridate::dmy(25072019)
 
 # First date of month
-first_dom <- lubridate::dmy(01072019)
+first_dom <- lubridate::floor_date(census_date, "month")
 
 # Last date of the month
-last_dom <- lubridate::dmy(31072019)
+last_dom <- lubridate::ceiling_date(census_date, "month") - 1
 
 ### END OF SCRIPT ###
