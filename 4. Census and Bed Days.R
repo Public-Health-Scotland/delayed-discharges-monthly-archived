@@ -925,31 +925,43 @@ datafile21 <- left_join(datafile16, bhbbedstepmplate,
 arrange(datafile21,hbname,age,reas1) # arrange data in order for tables
 
 write_sav(datafile21,paste0(filepath,"hb bed days data sheet minus standard.sav")) # save out file
+datafile21<-datafile21%>% mutate(hbname=toupper(hbname),age=toupper(age),reas1=toupper(reas1))
 
 #Add in total for Standard filter on any row that isn't all
-datafile22a<-filter(datafile21,reas1!="All") 
+datafile22a<-filter(datafile21,reas1!="ALL") 
 datafile22<-datafile22a%>% mutate(reas1=
-                                    if_else(reas1%in%c("Health and Social Care Reasons","Patient/Carer/Family-related reasons"),"Standard","Code 9"))
+                                    if_else(reas1%in%c("HEALTH AND SOCIAL CARE REASONS","PATIENT/CARER/FAMILY-RELATED REASONS"),"STANDARD","CODE 9"))
 table(datafile22$reas1)
 
 #select standard only.
-datafile23<-filter(datafile22,reas1=="Standard")
+datafile23<-filter(datafile22,reas1=="STANDARD")
 # aggregate 
 
 datafile24<- datafile23 %>% 
   group_by(hbname,age,reas1) %>% 
   summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE))
 
-datafile24<-datafile24%>%rename(OBDs2=OBDs_intheMonth)
+#datafile24<-datafile24%>%rename(OBDs2=OBDs_intheMonth)
 
 datafile25<- bind_rows(datafile24, datafile21)
+datafile25<-datafile25%>% mutate(hbname=toupper(hbname),age=toupper(age),reas1=toupper(reas1))
 
-arrange(datafile25,hbname,age,reas1)
+
+arrange(datafile25,hbname,age,reas1) # issue here is that the rows with zeros don't appear so have to match to output file
 
 datafile26<-read.csv(paste0(filepath2,"hb_template.csv"))
+datafile26<-datafile26%>% mutate(hbname=toupper(hbname),age=toupper(age),reas1=toupper(reas1))
 
 #match files
-datafile27 <- left_join(datafile26, datafile25,
+datafile27 <- right_join(datafile25, datafile26,
                         by = c(("hbname" = "hbname"), ("age"="age"),("reas1"="reas1")))
+
+#recode any NA as 0
+datafile27$OBDs_intheMonth[is.na(datafile27$OBDs_intheMonth)] <- 0
+
+HB_OBD<-select(datafile27,-obds2)
+
+write.xlsx(HB_OBD,paste0(filepath,"HB bed days all ages all reasons_R.xlsx"))
+
 
 ### END OF SCRIPT ###
