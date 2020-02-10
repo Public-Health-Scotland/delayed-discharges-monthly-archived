@@ -23,29 +23,16 @@
 #   setting plot parameter
 #   specifying codes (e.g. ICD-10 codes)
 
-library(readxl)
-library(dplyr)
-library(tidyr)
-library(haven)
-library(lubridate)
-library(stringr)
-library(openxlsx)
-library(tidyverse)
-library(janitor)
-library(haven)
-library(stats)
-library(xlsx)
-devtools::install_github("Health-SocialCare-Scotland/phimethods")
+
 
 ### 1.Filepaths for latest month
 
 filepath<-("/conf/delayed_discharges/RAP development/2019_07/Outputs/")
 filepath2<-("/conf/delayed_discharges/RAP development/2019_07/Data/scotland/")
 
+#bring in environment 
+source("00_setup_environment.R")
 
-censusdate<-dmy("25/07/2019")
-monthstart<-dmy("01/07/2019")
-monthend<-dmy("31/07/2019")
 
 Monthflag<-("Jul 2019")
 
@@ -415,11 +402,11 @@ datafile<-datafile%>% mutate(PatientDOB = dmy(PatientDOB),
 '%!in%' <- function(x,y)!('%in%'(x,y))
                           
 datafile<-datafile %>% mutate(CENSUSFLAG=
-if_else(is.na(DateDischarge) & Readyfordischargedate<censusdate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",
-if_else(DateDischarge>=censusdate & Readyfordischargedate<censusdate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",
-if_else(DateDischarge<=censusdate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"",
+if_else(is.na(DateDischarge) & Readyfordischargedate<census_date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",
+if_else(DateDischarge>=census_date & Readyfordischargedate<census_date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",
+if_else(DateDischarge<=census_date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"",
 if_else(DateDischarge==Readyfordischargedate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in% c("26X","46X"),"",
-if_else(DateDischarge>=censusdate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"",""))))))
+if_else(DateDischarge>=census_date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"",""))))))
 
 
 #datafile9 <- filter(datafile, REASONFORDELAY!="100" & CENSUSFLAG=="Y")
@@ -450,30 +437,30 @@ table(datafile$duplicatedCHI) # check that above command has worked
 ##line 551 in syntax referenced
 
 #calculate bed days in current month
-datafile<-datafile %>% mutate(CurrentMonthStart=monthstart)
-datafile<-datafile %>% mutate(CurrentMonthEnd=monthend)
+datafile<-datafile %>% mutate(Currentfirst_dom=first_dom)
+datafile<-datafile %>% mutate(Currentlast_dom=last_dom)
 
 
 
 #Flag if Readyfordischargedate in current month
 datafile<-datafile %>% mutate(DRMDInMonth=
-  if_else(Readyfordischargedate>=monthstart & Readyfordischargedate<=monthend,"Y"," "))
+  if_else(Readyfordischargedate>=first_dom & Readyfordischargedate<=last_dom,"Y"," "))
 
 #Flag if dischargedate in current month
 #added in the !is.na element to ensure any N/A DateDischarge is counted too in totals
 datafile<-datafile %>% 
-  mutate(DateDischargeInMonth= if_else((DateDischarge>=monthstart & DateDischarge<=monthend)
+  mutate(DateDischargeInMonth= if_else((DateDischarge>=first_dom & DateDischarge<=last_dom)
                                        & !is.na(DateDischarge),"Y",""))
 
 
 #table(datafile$DRMDInMonth)  # check that 
-##add in NA for Date Discharge to be monthend
+##add in NA for Date Discharge to be last_dom
 
 datafile<-datafile %>% mutate(OBDs_intheMonth=
     if_else(DRMDInMonth=="Y" & DateDischargeInMonth=="Y",difftime(DateDischarge, Readyfordischargedate, units = "days"),
-    if_else(DRMDInMonth==" " & DateDischargeInMonth=="Y",difftime(DateDischarge, CurrentMonthStart, units = "days")+1,
-    if_else(DRMDInMonth=="Y" & DateDischargeInMonth!="Y",difftime(CurrentMonthEnd, Readyfordischargedate, units = "days"),
-    if_else(DRMDInMonth==" " & DateDischargeInMonth!="Y",difftime(CurrentMonthEnd, CurrentMonthStart, units = "days")+1,0)))))
+    if_else(DRMDInMonth==" " & DateDischargeInMonth=="Y",difftime(DateDischarge, Currentfirst_dom, units = "days")+1,
+    if_else(DRMDInMonth=="Y" & DateDischargeInMonth!="Y",difftime(Currentlast_dom, Readyfordischargedate, units = "days"),
+    if_else(DRMDInMonth==" " & DateDischargeInMonth!="Y",difftime(Currentlast_dom, Currentfirst_dom, units = "days")+1,0)))))
 
 table(datafile$DRMDInMonth)           # matches syntax output
 table(datafile$DateDischargeInMonth)  # matches syntax output 
@@ -565,7 +552,7 @@ table(datafile$NoofPatients)
 
 ##Calculate Del;ay at Census at Census POint
 datafile<-datafile %>% mutate(DelayatCensus=
-  if_else(CENSUSFLAG=="Y" & Readyfordischargedate<censusdate,difftime(censusdate, Readyfordischargedate, units = "days"),0))
+  if_else(CENSUSFLAG=="Y" & Readyfordischargedate<census_date,difftime(census_date, Readyfordischargedate, units = "days"),0))
 
 #sum(datafile$DelayatCensus) # check the total matches the syntax output totals - slight difference due to N465R?
 
@@ -939,9 +926,9 @@ arrange(datafile21,hbname,age,reas1) # arrange data in order for tables
 
 write_sav(datafile21,paste0(filepath,"hb bed days data sheet minus standard.sav")) # save out file
 
-#Add in total for Standard
-
-datafile22<-datafile21 %>% mutate(reas1=
+#Add in total for Standard filter on any row that isn't all
+datafile22a<-filter(datafile21,reas1!="All") 
+datafile22<-datafile22a%>% mutate(reas1=
                                     if_else(reas1%in%c("Health and Social Care Reasons","Patient/Carer/Family-related reasons"),"Standard","Code 9"))
 table(datafile22$reas1)
 
@@ -951,14 +938,18 @@ datafile23<-filter(datafile22,reas1=="Standard")
 
 datafile24<- datafile23 %>% 
   group_by(hbname,age,reas1) %>% 
-  summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE)) %>% 
-  ungroup()
+  summarise(OBDs_intheMonth=sum(OBDs_intheMonth,na.rm=TRUE))
 
 datafile24<-datafile24%>%rename(OBDs2=OBDs_intheMonth)
 
-         
+datafile25<- bind_rows(datafile24, datafile21)
+
+arrange(datafile25,hbname,age,reas1)
+
+datafile26<-read.csv(paste0(filepath2,"hb_template.csv"))
+
 #match files
-datafile25 <- left_join(datafile24, datafile21,
+datafile27 <- left_join(datafile26, datafile25,
                         by = c(("hbname" = "hbname"), ("age"="age"),("reas1"="reas1")))
 
 ### END OF SCRIPT ###
