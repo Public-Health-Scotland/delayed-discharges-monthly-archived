@@ -510,23 +510,32 @@ datafile <- datafile %>%
   # DUPLICATE RECORDS
   
   #Check for duplicate CHI numbers and flag.
-  dplyr::arrange(chi_number) #%>%
-  dplyr::mutate(duplicate_CHI = dplyr::if_else(
-                                          chi_number == dplyr::lag(chi_number),
-                                          "Y", "N")) %>%
+  dplyr::arrange(chi_number) %>%
+  tidylog::group_by(chi_number) %>%
+    mutate(duplicate_CHI = if_else(max(dplyr::row_number()) > 1, "Y","N")) %>%
+    dplyr::ungroup() %>%
+
   # Need to capture paired records with errors to investigate reason for 
   # duplicate - so update Error code for both
   dplyr::arrange(chi_number, desc(duplicate_CHI)) %>%
-  if(duplicate_CHI == "N" & chi_number == dplyr::lag(chi_number)) mutate(duplicate_CHI == dplyr::lag(duplicate_CHI)) %>%
+  tidylog::group_by(chi_number) %>%
+    mutate(duplicate_CHI = if_else(max(row_number()) > 1, "Y", "N")) %>%
+  dplyr::ungroup() %>%
+
   # Check for duplicate CENSUS records and flag
   dplyr::arrange(chi_number, desc(census_flag)) %>%
-  dplyr::mutate(error_Duplicate_CHI_Census = dplyr::if_else(chi_number == lag(chi_number) & census_flag == 'Y' & census_flag == lag(census_flag), "Y", "N")) #%>%
-# unique error_DuplicateCHI_Census
+  tidylog::group_by(chi_number, census_flag) %>%
+    mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & 
+                                                census_flag == "Y", "Y", "N")) %>%
+  dplyr::ungroup() %>%
+
   # Need to capture paired records with errors to investigate reason for 
-  # duplicate - so update Error code for both..
+  # duplicate - so update Error code for both.
   dplyr::arrange(chi_number, desc(error_Duplicate_CHI_Census)) %>%
-  if(error_DuplicateCHI_Census == "N" & chi_number == dplyr::lag(chi_number) & 
-     census_flag == "Y") mutate(error_DuplicateCHI_Census == "Y") %>%
+  tidylog::group_by(chi_number, census_flag) %>%
+    mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & census_flag == "Y", 
+                  lag(error_Duplicate_CHI_Census, error_Duplicate_CHI_Census))) %>%
+  dplyr::ungroup() #%>%
   
   # DELAY LOCATION (acute, gpled, notgpled) while spec still in data.
   # Note: lookup below is Acute hospitals ONLY.
