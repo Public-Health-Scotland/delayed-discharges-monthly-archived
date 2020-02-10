@@ -17,11 +17,15 @@
 #filename for latest month needs to be manually updated - can we automate this somehow?
 
 
-### 1.Get Scotland_validated file for latest month ----
+### 1. Housekeeping ----
+source("00_setup_environment.R")
+
+
+### 2. Get Scotland_validated file for latest month ----
 
 # Read in file
 datafile <-
-  read_spss("/conf/delayed_discharges/Data files/Single Submissions (July 2016 onwards)/2019_07/Data/scotland/SCOTLAND_validated.sav")
+  readr::read_csv(paste0(filepath, census_date, "_Scotland_validated.csv"))
 
 # Convert PatientDOB to date variable, add variable 'cennum' (census number for latest month)
 datafile2 <- datafile %>% 
