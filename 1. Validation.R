@@ -1,31 +1,12 @@
 #Validation script for Monthly delayed discharges file creation
 
-library(readxl)
-library(dplyr)
-library(tidyr)
-library(haven)
-library(lubridate)
-library(stringr)
-library(openxlsx)
-library(tidyverse)
-library(janitor)
-library(haven)
-library(stats)
-library(xlsx)
-library(tidylog)
-library(magrittr)
-devtools::install_github("Health-SocialCare-Scotland/phimethods")
  
-### 1.Filepaths for latest month
-
-filepath<-("/conf/delayed_discharges/RAP development/2019_07/Outputs/")
-filepath2<-("/conf/delayed_discharges/RAP development/2019_07/Data/glasgow/")
 #bring in environment 
-#
+source("00_setup_environment.R")
 
-censusdate<-ymd("2019/07/25")
-monthstart<-ymd("2019/07/01")
-monthend<-ymd("2019/07/31")
+census_date<-ymd("2019/07/25")
+month_start<-ymd("2019/07/01")
+month_end<-ymd("2019/07/31")
 
 Monthflag<-("Jul 2019")
 Healthboard<-("glasgow")
@@ -112,8 +93,8 @@ datafile <-  datafile %>%
            TRUE ~ PatientPostcode))
 
 
-#datafile$FirstDoM <- monthstart  # FirstDoM becomes monthstart
-#datafile$LastDoM <- monthend # LastDoM becomes monthend
+#datafile$FirstDoM <- month_start  # FirstDoM becomes month_start
+#datafile$LastDoM <- month_end # LastDoM becomes month_end
 
 #Create dob2 in yyyymmdd format
 datafile<-datafile%>% 
@@ -143,8 +124,8 @@ datafile$Readyfordischargedate<-format(as.Date(datafile$Readyfordischargedate,"%
 datafile$OriginalAdmissionDate<-format(as.Date(datafile$OriginalAdmissionDate,"%d/%m/%Y"),"%Y/%m/%d")
 datafile$DateDischarge<-format(as.Date(datafile$DateDischarge,"%d/%m/%Y"),"%Y/%m/%d")
 datafile$PatientDOB<-format(as.Date(datafile$PatientDOB,"%d/%m/%Y"),"%Y/%m/%d")
-monthstart<-format(as.Date(monthstart,"%d/%m/%Y"),"%Y/%m/%d")
-monthend<-format(as.Date(monthend,"%d/%m/%Y"),"%Y/%m/%d")
+month_start<-format(as.Date(month_start,"%d/%m/%Y"),"%Y/%m/%d")
+month_end<-format(as.Date(month_end,"%d/%m/%Y"),"%Y/%m/%d")
 
 
 #Keep only hospital locations or N465R (in Grampian)
@@ -157,7 +138,7 @@ datafile <- filter(datafile, is.na(DateDischarge) | Readyfordischargedate!=DateD
 
 #ensure no records where RDD=LastDOM
 
-datafile<-filter(datafile,Readyfordischargedate!=monthend)
+datafile<-filter(datafile,Readyfordischargedate!=month_end)
 
 # compute Age Groupings ( ensures no-one aged under 18 is selected)
 datafile<-datafile%>% mutate(AgeGrouping=
@@ -235,11 +216,11 @@ table(datafile$DELAY_DESCRIPTION) #check
 #compute new variable census flag - ignoring 26X and 46X
 '%!in%' <- function(x,y)!('%in%'(x,y))
 '%notin%' <- Negate('%in%')
-datafile<-datafile %>% mutate(Census_Date=censusdate)
+datafile<-datafile %>% mutate(Census_Date=census_date)
 
 datafile<-datafile %>% mutate(CENSUSFLAG=
           if_else(is.na(DateDischarge) & Readyfordischargedate<Census_Date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",
-          if_else(DateDischarge>=Census_Date & Readyfordischargedate<censusdate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",
+          if_else(DateDischarge>=Census_Date & Readyfordischargedate<census_date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",
           if_else(DateDischarge<=Census_Date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"",
           if_else(DateDischarge==Readyfordischargedate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in% c("26X","46X"),"",
           if_else(DateDischarge>=Census_Date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"",""))))))
@@ -247,14 +228,14 @@ datafile<-datafile %>% mutate(CENSUSFLAG=
 table(datafile$CENSUSFLAG) # OK here 209 matches census output table publication
 #Flag those discharged up to 3 working days after census
 
-#Add in variable CensusDatePlus3WorkingDays
+#Add in variable census_datePlus3WorkingDays
 
-datafile<-datafile%>% mutate(CensusDatePlus3WorkingDays=Census_Date+5)
+datafile<-datafile%>% mutate(census_datePlus3WorkingDays=Census_Date+5)
 
-#Flag those with a dischargedate le CensusDatePlus3WorkingDays
+#Flag those with a dischargedate le census_datePlus3WorkingDays
 
 datafile<-datafile %>% mutate(Dischargewithin3daysCensus=
-                                if_else(CENSUSFLAG=="Y" & DateDischarge<=CensusDatePlus3WorkingDays & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y"," "))
+                                if_else(CENSUSFLAG=="Y" & DateDischarge<=census_datePlus3WorkingDays & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y"," "))
 
 table (datafile$Dischargewithin3daysCensus)
 #change "Y" to a count for DischargeWithin3Days
@@ -273,16 +254,16 @@ datafile_check<-datafile %>% filter(Dischargewithin3daysCensus==1 & is.na(CENSUS
 
 
 #convert dates to same format 
-datafile$CensusDatePlus3WorkingDays<-format(as.Date(datafile$CensusDatePlus3WorkingDays,"%Y-%m-%d"),"%Y/%m/%d")
+datafile$census_datePlus3WorkingDays<-format(as.Date(datafile$census_datePlus3WorkingDays,"%Y-%m-%d"),"%Y/%m/%d")
   
 
 #calculate bed days in current month
-#datafile<-datafile %>% mutate(CurrentMonthStart=monthstart)
-#datafile<-datafile %>% mutate(CurrentMonthEnd=monthend)
+#datafile<-datafile %>% mutate(Currentmonth_start=month_start)
+#datafile<-datafile %>% mutate(Currentmonth_end=month_end)
 
 #convert dates to same format 
-#datafile$CurrentMonthStart<-format(as.Date(datafile$CurrentMonthStart,"%Y-%m-%d"),"%Y/%m/%d")
-#datafile$CurrentMonthEnd<-format(as.Date(datafile$CurrentMonthEnd,"%Y-%m-%d"),"%Y/%m/%d")
+#datafile$Currentmonth_start<-format(as.Date(datafile$Currentmonth_start,"%Y-%m-%d"),"%Y/%m/%d")
+#datafile$Currentmonth_end<-format(as.Date(datafile$Currentmonth_end,"%Y-%m-%d"),"%Y/%m/%d")
 
 #test commit works 
 
@@ -290,23 +271,23 @@ datafile$CensusDatePlus3WorkingDays<-format(as.Date(datafile$CensusDatePlus3Work
 
 #Flag if Readyfordischargedate in current month
 datafile<-datafile %>% mutate(DRMDInMonth=
-                                if_else(Readyfordischargedate>=monthstart & Readyfordischargedate<=monthend,"Y"," "))
+                                if_else(Readyfordischargedate>=month_start & Readyfordischargedate<=month_end,"Y"," "))
 
 #Flag if dischargedate in current month
 #added in the !is.na element to ensure any N/A DateDischarge is counted too in totals
 datafile<-datafile %>% 
-  mutate(DateDischargeInMonth= if_else((DateDischarge>=monthstart & DateDischarge<=monthend)
+  mutate(DateDischargeInMonth= if_else((DateDischarge>=month_start & DateDischarge<=month_end)
                                        & !is.na(DateDischarge),"Y",""))
 
 
 table(datafile$DRMDInMonth)  # check that 
-##add in NA for Date Discharge to be monthend
+##add in NA for Date Discharge to be month_end
 
 datafile<-datafile %>% mutate(OBDs_intheMonth=
                     if_else(DRMDInMonth=="Y" & DateDischargeInMonth=="Y",difftime(DateDischarge, Readyfordischargedate, units = "days"),
-                    if_else(DRMDInMonth==" " & DateDischargeInMonth=="Y",difftime(DateDischarge, monthstart, units = "days")+1,
-                    if_else(DRMDInMonth=="Y" & DateDischargeInMonth!="Y",difftime(monthend, Readyfordischargedate, units = "days"),
-                    if_else(DRMDInMonth==" " & DateDischargeInMonth!="Y",difftime(monthend, monthstart, units = "days")+1,0)))))
+                    if_else(DRMDInMonth==" " & DateDischargeInMonth=="Y",difftime(DateDischarge, month_start, units = "days")+1,
+                    if_else(DRMDInMonth=="Y" & DateDischargeInMonth!="Y",difftime(month_end, Readyfordischargedate, units = "days"),
+                    if_else(DRMDInMonth==" " & DateDischargeInMonth!="Y",difftime(month_end, month_start, units = "days")+1,0)))))
 
 table(datafile$DRMDInMonth)           # matches syntax output
 table(datafile$DateDischargeInMonth)  # matches syntax output 
@@ -358,12 +339,12 @@ datafile<-datafile %>% mutate(query_SpecInvalid=
 #Check data discharged is in current month
 
 datafile<-datafile %>%  mutate(query_Month=
-                                 if_else(is.na(DateDischarge) & DateDischarge<monthstart,"Y"," "))
+                                 if_else(is.na(DateDischarge) & DateDischarge<month_start,"Y"," "))
 
 #Check RDD in current month
 
 datafile<-datafile %>%  mutate(query_RDD=
-                                 if_else(Readyfordischargedate>monthend,"Y"," "))
+                                 if_else(Readyfordischargedate>month_end,"Y"," "))
 
 #Check for Missing Discharge Reason
 
@@ -721,7 +702,7 @@ Census_hb <- datafile3 %>%
   group_by(Healthboard, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
   summarise(census=n()) %>% 
   ungroup()
-
+ 
 #Create a Provisional HB/LA census total - excl Code 100.
 
 Census_la<- datafile3 %>% 
