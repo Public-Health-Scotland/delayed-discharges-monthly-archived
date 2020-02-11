@@ -36,65 +36,8 @@ source("00_setup_environment.R")
 
 Monthflag<-("Jul 2019")
 
-### 2.Get Scotland_validated file for latest month ----
+### 2.Get Scotland_allboards file for latest month ----
 
-datafile<-read_spss(paste0(filepath2,"SCOTLAND_validated.sav"))
-
-
-#strip out code 100s
-
-datafile<-datafile %>% filter(reas1!="Code 100")
-
-#Create new variables
-
-datafile<-datafile %>% mutate(areaname=" ")
-datafile<-datafile %>% mutate(year="2019-20")
-
-#rename variables
-
-datafile <- datafile %>% 
-  rename(chi = CHINo,
-         hbname=Healthboard,
-         la=localauthoritycode,
-         disch3days=Dischargewithin3daysCensus,
-         age=AgeGrouping,
-         month=Monthflag,
-         daysdelayed=DelayatCensus,
-         reas3=DELAY_DESCRIPTION,
-         totaPats=NoofPatients,
-         delayreason=REASONFORDELAY,
-         secReason=REASONFORDELAYSECONDARY)
-
-#save out file for main bed days file
-
-
-write_sav(datafile,paste0(filepath,"main bed days file.sav")) # save out file
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-####start of erroneous code#### DO NOT USE######
 # Read in file
 datafile<-read_spss(paste0(filepath,"Allboards_R.sav"))
 #datafile<-read_spss(paste0(filepath2,"SCOTLAND_validated.sav"))
