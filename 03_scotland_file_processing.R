@@ -52,9 +52,9 @@ datafile <- datafile %>%
                               chi_number),
          #Format dates
          # replace missing dates with NA 
-         discharge_date = dplyr::na_if(discharge_date, ""), 
-         date_declared_medically_fit = 
-           dplyr::na_if(date_declared_medically_fit, ""),
+         discharge_date = dplyr::na_if(discharge_date, ""),
+                            date_declared_medically_fit = 
+                            dplyr::na_if(date_declared_medically_fit, ""),
          date_of_birth = lubridate::dmy(date_of_birth),
          date_referred_for_sw_assessment = 
            lubridate::dmy(date_referred_for_sw_assessment),
@@ -62,27 +62,26 @@ datafile <- datafile %>%
            lubridate::dmy(date_declared_medically_fit),
 # SPSS syntax used to use 2 variables to calculate OBDs in the month based on 
 # full length of delay, not from latest RDD (RDD2)- no longer needed?
-ready_for_discharge_date = date_declared_medically_fit,
+         ready_for_discharge_date = date_declared_medically_fit,
          admission_date = lubridate::dmy(admission_date),
          discharge_date = lubridate::dmy(discharge_date),
-# "All formats failed to parse. No formats found." error - special character 
-# in data causing to fail?
-#   date_declared_medically_fit = lubridate::dmy(date_declared_medically_fit),
-date_declared_medically_fit = as.Date(date_declared_medically_fit, "%d/%m/%y"),
+         # "All formats failed to parse. No formats found." error - special character 
+         # in data causing to fail?
+         #   date_declared_medically_fit = lubridate::dmy(date_declared_medically_fit),
+         date_declared_medically_fit = as.Date(date_declared_medically_fit, "%d/%m/%y"),
          # Recode discharge reason:
-         discharge_to_code = case_when(discharge_to_code == "01" ~ "1",
-                                       discharge_to_code == "02" ~ "2",
-                                       discharge_to_code == "03" ~ "3",
-                                       discharge_to_code == "04" ~ "4",
-                                       discharge_to_code == "05" ~ "5",
-                                       discharge_to_code == "06" ~ "6",
+         discharge_to_code <- case_when(discharge_to_code == "01" ~ "1",
+                                        discharge_to_code == "02" ~ "2",
+                                        discharge_to_code == "03" ~ "3",
+                                        discharge_to_code == "04" ~ "4",
+                                        discharge_to_code == "05" ~ "5",
+                                        discharge_to_code == "06" ~ "6",
                                        discharge_to_code == "07" ~ "7"),
          # Recode out of area:
-         out_of_area_case_indicator = 
-                          case_when(out_of_area_case_indicator == "Yes" ~ "Y",
-                                    out_of_area_case_indicator == "No" ~ "N",
-                                    out_of_area_case_indicator == "no" ~ "N",
-                                    out_of_area_case_indicator == "" ~ "N"),
+         out_of_area_case_indicator = case_when(out_of_area_case_indicator == "Yes" ~ "Y",
+                     out_of_area_case_indicator == "No" ~ "N",
+                     out_of_area_case_indicator == "no" ~ "N",
+                     out_of_area_case_indicator == "" ~ "N"),
          # Recode sex 
          sex_code = case_when(sex_code == "1" ~ "Male",
                               sex_code == "M" ~ "Male",
@@ -99,17 +98,22 @@ date_declared_medically_fit = as.Date(date_declared_medically_fit, "%d/%m/%y"),
 
          # Recode delay reason
          # Set blank codes to 11A
-         dd_code_1 = case_when(dd_code_1 == " " & dd_code_2 == " " ~ "11A",
+         dd_code_1 <- case_when(!is.na(dd_code_1) & dd_code_1 == " " & dd_code_2 == " " ~ "11A",
                                # recode code 9's
-                               dd_code_1 == "09" ~ "9"),
+                               !is.na(dd_code_1) & dd_code_1 == "09" ~ "9"),
          # reason code variables to upper case
-         dd_code_1 = toupper(dd_code_1),
-         dd_code_2 = toupper(dd_code_2),
+         dd_code_1 <- case_when(is.na(dd_code_1) ~ NA_character_,
+                               TRUE ~ toupper(dd_code_1)),
+         dd_code_2 <- case_when(is.na(dd_code_2) ~ NA_character_,
+                                TRUE ~ toupper(dd_code_2)),
          # recode old delay reasons
-         dd_code_1 = case_when(dd_code_1 == "41" ~ "25E",
+         dd_code_1 <- case_when(is.na(dd_code_1) ~ NA_character_,
+                                dd_code_1 == "41" ~ "25E",
                                dd_code_1 == "41A" ~ "23C",
                                dd_code_1 == "41B" ~ "23D",
                                dd_code_1 == "43" ~ "24A",
+################################################################################
+# Is the "." a typo??????????????
                                dd_code_1 == "27A." ~ "27",
                                dd_code_1 == "62" ~ "67",
                                dd_code_1 == "63" ~ "67"),
@@ -215,126 +219,119 @@ datafile <- datafile %>%
 
 # Derive age groups
 datafile <- datafile %>%
-  mutate(age_grp = case_when(age_at_rdd <75 ~ "18-74",
-                             age_at_rdd >=75 ~ "75+"))
-
+  mutate(age_grp <- case_when(age_at_rdd <75 ~ "18-74",
+                             age_at_rdd >=75 ~ "75+"),
 # Create Reason Code Groupings
-
 # 1. High level reason code grouping - post July 2016
 # Transport grouped under H&SC reasons as per BO report
-
-datafile <- datafile %>% 
-  mutate(reason_grp_high_level = 
-           case_when(is.na(dd_code_1) ~ NA_character_,
-                     dd_code_1 == "100" ~ "Code 100", 
-                     dd_code_1 == "9" ~ "Code 9",
-                     dd_code_1 %in% c("11A","11B","23C","23D","24A","24B","24C","24D",
-                                      "24E","24F","27A","25A","25D","25E","25F","44")
-                     ~ "Health and Social Care Reasons",
-                     dd_code_1 %in% c("51","52","61","67","71","72","73","74")
-                                      ~ "Patient/Carer/Family-related reasons"), 
-         reason_grp =
-           case_when(
-             dd_code_1 %in% c("11A","11B") ~ "H&SC - Community Care Assessment",
-             dd_code_1 %in% c("23C","23D") ~ "H&SC - Funding",
-             dd_code_1 %in% c("24A","24B","24C","24D","24E","24F","27A")
-             ~ "H&SC - Place Availability",
-             dd_code_1 %in% c("25A","25D","25E","25F")
-             ~ "H&SC - Care Arrangements",
-             dd_code_1 %in% c("44") ~ "H&SC - Transport",
-             dd_code_1 %in% c("51","52") 
-             ~ "Patient/Carer/Family-related reasons: Legal/Financial", 
-             dd_code_1 %in% c("61","67")
-             ~ "Patient/Carer/Family-related reasons: Disagreements",
-             dd_code_1 %in% c("71","72","73","74")
-             ~ "Patient/Carer/Family-related reasons: Other",
-             dd_code_2 %in% c("71X","25X","24EX","24DX")
-             ~ "Other code 9 reasons (not AWI)",
-             dd_code_2 %in% c("51X") ~ "Adults with Incapacity Act"),
-         # 3. Reason Codes INDIVIDUAL - Post July 2016.
-         delay_description =
-           case_when(
-           dd_code_1 == "11A"
-           ~ "Awaiting commencement of post-hospital social care assessment (including transfer to another area team). Social care includes home care and social work OT",
-           dd_code_1 == "11B" 
-           ~ "Awaiting completion of post-hospital social care assessment (including transfer to another area team). Social care includes home care and social work OT",
-           dd_code_1 == "23C" 
-           ~ "Non-availability of statutory funding to purchase Care Home Place",
-           dd_code_1 == "23D" 
-           ~ "Non-availability of statutory funding to purchase any Other Care Package",
-           dd_code_1 == "24A" 
-           ~ "Awaiting place availability in Local Authority Residential Home",
-           dd_code_1 == "24B" 
-           ~ "Awaiting place availability in Independent Residential Home",
-           dd_code_1 == "24C" 
-           ~ "Awaiting place availability in Nursing Home",
-           dd_code_1 == "24D" 
-           ~ "Awaiting place availability in Specialist Residential Facility for younger age groups (<65)",
-           dd_code_1 == "24E" 
-           ~ "Awaiting place availability in Specialist Residential Facility for older age groups (65+)",
-           dd_code_1 == "24F" 
-           ~ "Awaiting place availability in care home (EMI/Dementia bed required)",
-           dd_code_1 == "27A" 
-           ~ "Awaiting place availability in an Intermediate Care facility",
-           dd_code_1 == "25A" 
-           ~ "Awaiting completion of arrangements for Care Home placement",
-           dd_code_1 == "25D" 
-           ~ "Awaiting completion of arrangements - in order to live in their own home – awaiting social support (non-availability of services)",
-           dd_code_1 == "25E" 
-           ~ "Awaiting completion of arrangements - in order to live in their own home – awaiting procurement/delivery of equipment/adaptations fitted",
-           dd_code_1 == "25F" 
-           ~ "Awaiting completion of arrangements - Re-housing provision (including sheltered housing and homeless patients)",
-           dd_code_1 == "51" 
-           ~ "Legal issues (including intervention by patient’s lawyer) - e.g. informed consent and/or adult protection issues",
-           dd_code_1 == "52" 
-           ~ "Financial and personal assets problem - e.g. confirming financial assessment",
-           dd_code_1 == "61" 
-           ~ "Internal family dispute issues (including dispute between patient and carer)",
-           dd_code_1 == "67" 
-           ~ "Disagreement between patient/carer/family and health and social  care",
-           dd_code_1 == "71" 
-           ~ "Patient exercising statutory right of choice",
-           dd_code_1 == "72" 
-           ~ "Patient does not qualify for care",
-           dd_code_1 == "73" 
-           ~ "Family/relatives arranging care",
-           dd_code_1 == "74" 
-           ~ "Other patient/carer/family-related reason",
-           dd_code_1 == "44" 
-           ~ "Awaiting availability of transport",
-           dd_code_1 == "100" 
-           ~ "Reprovisioning/Recommissioning (see data definitions manual section 2.3)",
-           dd_code_1 == "9" & dd_code_2 == "24DX" 
-           ~ "Awaiting place availability in Specialist Facility for high level younger age groups (<65) where the Facility is not currently available and no interim option is appropriate",
-           dd_code_1 == "9" & dd_code_2 == "24EX" 
-           ~ "Awaiting place availability in Specialist Facility for high level older age groups (65+) where the Facility is not currently available and an interim option is not appropriate",
-           dd_code_1 == "9" & dd_code_2 == "26X" ~ "Care Home/facility closed",
-           dd_code_1 == "9" & dd_code_2 == "46X" 
-           ~ "Ward closed – patient well but cannot be discharged due to closure",
-           dd_code_1 == "9" & dd_code_2 == "25X" 
-           ~ "Awaiting completion of complex care arrangements - in order to live in their own home",
-           dd_code_1 == "9" & dd_code_2 == "51X" 
-           ~ "Adults with Incapacity Act",
-           dd_code_1 == "9" & dd_code_2 == "71X" 
-           ~ "Patient exercising statutory right of choice – interim placement is not possible or reasonable"),
-         # Create census flag
-         census_flag = case_when(discharge_date == NA_character_
-                                & date_declared_medically_fit == census_date 
-                                & (dd_code_2 != "26X" | dd_code_2 != "46X") 
-                                ~ "Y",
-                                discharge_date >= census_date 
-                                & date_declared_medically_fit == census_date 
-                                & (dd_code_2 != "26X" | dd_code_2 != "46X") 
-                                ~ "Y",
-                                discharge_date <= census_date 
-                                & (dd_code_2 != "26X" | dd_code_2 != "46X") 
-                                ~ "",
-                                discharge_date == date_declared_medically_fit 
-                                & (dd_code_2 != "26X" | dd_code_2 != "46X") 
-                                ~ "",
-                                discharge_date >= census_date 
-                                & (dd_code_2 != "26X" | dd_code_2 != "46X") 
-                                ~ ""),
+  reason_grp_high_level = case_when(is.na(dd_code_1) ~ NA_character_,
+                                    dd_code_1 == "100" ~ "Code 100", 
+                                    dd_code_1 == "9" ~ "Code 9",
+                                    dd_code_1 %in% c("11A","11B","23C","23D","24A","24B","24C","24D",
+                                                     "24E","24F","27A","25A","25D","25E","25F","44")
+                                    ~ "Health and Social Care Reasons",
+                                    dd_code_1 %in% c("51","52","61","67","71","72","73","74")
+                                    ~ "Patient/Carer/Family-related reasons"), 
+  reason_grp = case_when(dd_code_1 %in% c("11A","11B") ~ "H&SC - Community Care Assessment",
+                         dd_code_1 %in% c("23C","23D") ~ "H&SC - Funding",
+                         dd_code_1 %in% c("24A","24B","24C","24D","24E","24F","27A")
+                         ~ "H&SC - Place Availability",
+                         dd_code_1 %in% c("25A","25D","25E","25F")
+                         ~ "H&SC - Care Arrangements",
+                         dd_code_1 %in% c("44") ~ "H&SC - Transport",
+                         dd_code_1 %in% c("51","52") 
+                         ~ "Patient/Carer/Family-related reasons: Legal/Financial", 
+                         dd_code_1 %in% c("61","67")
+                         ~ "Patient/Carer/Family-related reasons: Disagreements",
+                         dd_code_1 %in% c("71","72","73","74")
+                         ~ "Patient/Carer/Family-related reasons: Other",
+                         dd_code_2 %in% c("71X","25X","24EX","24DX")
+                         ~ "Other code 9 reasons (not AWI)",
+                         dd_code_2 %in% c("51X") ~ "Adults with Incapacity Act"),
+# 3. Reason Codes INDIVIDUAL - Post July 2016.
+  delay_description = case_when(dd_code_1 == "11A"
+    ~ "Awaiting commencement of post-hospital social care assessment (including transfer to another area team). Social care includes home care and social work OT",
+    dd_code_1 == "11B" 
+    ~ "Awaiting completion of post-hospital social care assessment (including transfer to another area team). Social care includes home care and social work OT",
+    dd_code_1 == "23C" 
+    ~ "Non-availability of statutory funding to purchase Care Home Place",
+    dd_code_1 == "23D" 
+    ~ "Non-availability of statutory funding to purchase any Other Care Package",
+    dd_code_1 == "24A" 
+    ~ "Awaiting place availability in Local Authority Residential Home",
+    dd_code_1 == "24B" 
+    ~ "Awaiting place availability in Independent Residential Home",
+    dd_code_1 == "24C" 
+    ~ "Awaiting place availability in Nursing Home",
+    dd_code_1 == "24D" 
+    ~ "Awaiting place availability in Specialist Residential Facility for younger age groups (<65)",
+    dd_code_1 == "24E" 
+    ~ "Awaiting place availability in Specialist Residential Facility for older age groups (65+)",
+    dd_code_1 == "24F" 
+    ~ "Awaiting place availability in care home (EMI/Dementia bed required)",
+    dd_code_1 == "27A" 
+    ~ "Awaiting place availability in an Intermediate Care facility",
+    dd_code_1 == "25A" 
+    ~ "Awaiting completion of arrangements for Care Home placement",
+    dd_code_1 == "25D" 
+    ~ "Awaiting completion of arrangements - in order to live in their own home – awaiting social support (non-availability of services)",
+    dd_code_1 == "25E" 
+    ~ "Awaiting completion of arrangements - in order to live in their own home – awaiting procurement/delivery of equipment/adaptations fitted",
+    dd_code_1 == "25F" 
+    ~ "Awaiting completion of arrangements - Re-housing provision (including sheltered housing and homeless patients)",
+    dd_code_1 == "51" 
+    ~ "Legal issues (including intervention by patient’s lawyer) - e.g. informed consent and/or adult protection issues",
+    dd_code_1 == "52" 
+    ~ "Financial and personal assets problem - e.g. confirming financial assessment",
+    dd_code_1 == "61" 
+    ~ "Internal family dispute issues (including dispute between patient and carer)",
+    dd_code_1 == "67" 
+    ~ "Disagreement between patient/carer/family and health and social  care",
+    dd_code_1 == "71" 
+    ~ "Patient exercising statutory right of choice",
+    dd_code_1 == "72" 
+    ~ "Patient does not qualify for care",
+    dd_code_1 == "73" 
+    ~ "Family/relatives arranging care",
+    dd_code_1 == "74" 
+    ~ "Other patient/carer/family-related reason",
+    dd_code_1 == "44" 
+    ~ "Awaiting availability of transport",
+    dd_code_1 == "100" 
+    ~ "Reprovisioning/Recommissioning (see data definitions manual section 2.3)",
+    dd_code_1 == "9" & dd_code_2 == "24DX" 
+    ~ "Awaiting place availability in Specialist Facility for high level younger age groups (<65) where the Facility is not currently available and no interim option is appropriate",
+    dd_code_1 == "9" & dd_code_2 == "24EX" 
+    ~ "Awaiting place availability in Specialist Facility for high level older age groups (65+) where the Facility is not currently available and an interim option is not appropriate",
+    dd_code_1 == "9" & dd_code_2 == "26X" ~ "Care Home/facility closed",
+    dd_code_1 == "9" & dd_code_2 == "46X" 
+    ~ "Ward closed – patient well but cannot be discharged due to closure",
+    dd_code_1 == "9" & dd_code_2 == "25X" 
+    ~ "Awaiting completion of complex care arrangements - in order to live in their own home",
+    dd_code_1 == "9" & dd_code_2 == "51X" 
+    ~ "Adults with Incapacity Act",
+    dd_code_1 == "9" & dd_code_2 == "71X" 
+    ~ "Patient exercising statutory right of choice – interim placement is not possible or reasonable"),
+  # Create census flag
+################################################################################
+# Is this handling missing dates correctly? Code to "No"???
+  census_flag = case_when(is.na(date_declared_medically_fit) | is.na(census_date) ~ NA_character_,
+                          is.na(discharge_date) & date_declared_medically_fit == 
+                          census_date & (dd_code_2 != "26X" | dd_code_2 != "46X") 
+                          ~ "Y",
+                        discharge_date >= census_date & 
+                          date_declared_medically_fit == census_date & 
+                          (dd_code_2 != "26X" | dd_code_2 != "46X")
+                        ~ "Y",
+                        discharge_date <= census_date & 
+                          (dd_code_2 != "26X" | dd_code_2 != "46X")
+                        ~ "",
+                        discharge_date == date_declared_medically_fit & 
+                          (dd_code_2 != "26X" | dd_code_2 != "46X") 
+                        ~ "",
+                        discharge_date >= census_date & 
+                          (dd_code_2 != "26X" | dd_code_2 != "46X") 
+                        ~ ""),
          
          # Flag those discharged up to 3 working days after census 
          # (NOTE census is always last THURS of month).
@@ -345,17 +342,13 @@ datafile <- datafile %>%
          # 2 Flag those with a discharge date le census_date_plus_3_working_days 
          # and check against BO variable CENSUSDISCHARGEWITHIN3WORKINGDAYS.
          discharge_within_3_days_census =
-           case_when(discharge_date == NA_character_ ~ "NA",
+           case_when(is.na(discharge_date) ~ 0,
                      census_flag == "Y" & 
                        discharge_date < census_date_plus_3_working_days & 
                        dd_code_1 != "100" &
-                       (dd_code_2 != "26X" & dd_code_2 != "46X") ~ "Y"),
-         
-         # Change 'Y' to count for discharge_within_3_days_census.
-         discharge_within_3_days_census <- case_when(
-           discharge_within_3_days_census == "Y" ~ 1,
-           discharge_within_3_days_census == "" ~ 0),
-         
+                       (dd_code_2 != "26X" & dd_code_2 != "46X") ~ 1,
+                        FALSE ~ 0),
+  
          # Check - should be zero cases returned.
          # census_flagcheck <- filter(datafile, discharge_within_3_days_census = 1 & census_flag == "")
          
@@ -405,7 +398,7 @@ datafile <- datafile %>%
                                            last_dom), "days"),
            drmd_in_month == NA_character_ & date_discharge_in_month != "Y" ~ 
              as.period(lubridate::interval(first_dom, last_dom), "days")# + days(1)
-         ),
+         ))#,
          # OBDS in the current month - END.
          
          # Check for records where OriginalDateReadyforDischarge (ORDD) <> 
@@ -534,8 +527,8 @@ datafile <- datafile %>%
   dplyr::arrange(chi_number, desc(error_Duplicate_CHI_Census)) %>%
   tidylog::group_by(chi_number, census_flag) %>%
     mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & census_flag == "Y", 
-                  lag(error_Duplicate_CHI_Census, error_Duplicate_CHI_Census))) %>%
-  dplyr::ungroup() #%>%
+                  lag(error_Duplicate_CHI_Census), error_Duplicate_CHI_Census)) %>%
+  dplyr::ungroup() %>%
   
   # DELAY LOCATION (acute, gpled, notgpled) while spec still in data.
   # Note: lookup below is Acute hospitals ONLY.
@@ -543,17 +536,15 @@ datafile <- datafile %>%
   dplyr::arrange(location)
   
   # Create location name lookup.
-################################################################################
-# Use online version of location names? does this differ from local DD copy???
-  hospital_lookup <- bind_rows(read_spss(paste0(
-    plat_filepath, "lookups/Unicode/National Reference Files/",
-    "location.sav")) %>%
+  hospital_lookup <- bind_rows(readr::read_rds(paste0(
+    plat_filepath, "linkage/output/lookups/Unicode/National Reference Files/",
+    "location.rds")) %>%
       select(Location, Locname) %>%
       rename(location      = Location,
              location_name = Locname),
-    read_spss(paste0(plat_filepath,
-                     "lookups/Unicode/National Reference Files/",
-                     "Health_Board_Identifiers.sav")) %>%
+    readr::read_rds(paste0(plat_filepath,
+                     "linkage/output/lookups/Unicode/National Reference Files/",
+                     "Health_Board_Identifiers.rds")) %>%
       select(description, HB_Area_2014) %>%
       rename(location      = HB_Area_2014,
              location_name = description),
@@ -562,6 +553,7 @@ datafile <- datafile %>%
     tibble(location = "S08000030", location_name = "NHS Tayside"),
     tibble(location = "S08000031", location_name = "NHS Greater Glasgow & Clyde"),
     tibble(location = "S08000032", location_name = "NHS Lanarkshire"))
+
 # Match on location names  
 datafile <- datafile %>%
   tidylog::left_join(hospital_lookup, by = "location") %>%
@@ -575,7 +567,7 @@ datafile <- datafile %>%
                 total = acute + gpled + notgpled,
                 check2 = dplyr::if_else(total == 1, 0, 1)) %>%
 # unique freq vars check2.
-  dplyr::select(-c(total, check2, hospname)) %>%
+  dplyr::select(-c(total, check2)) %>%
 # DERIVATIONS END
   
   # Set NoofPatients variable to 1 for all records (incl Islands/d&g).
@@ -591,13 +583,12 @@ datafile <- datafile %>%
 # get file = !Filepath + 'scotland_temp.sav'.
 
 
-# Create a provisional HB census total - excl Code 100.
-filter(dd_code_1 != "100" & (census_flag == 'Y' | 
-                               discharge_within_3_days_census == 1)) %>%
-  tidylog::group_by(nhs_board, discharge_within_3_days_census, 
-                    reason_grp_high_level) %>%
-  tidylog::summarise(census_total_hb <- n())
-  dplyr::ungroup() %>%
+  # Create a provisional HB census total - excl Code 100.
+  filter(dd_code_1 != "100" & (census_flag == 'Y' | 
+                               discharge_within_3_days_census == 1)) #%>%
+  group_by(nhs_board, discharge_within_3_days_census, reason_grp_high_level) %>%
+    summarise(census_total_hb = n()) %>%
+    dplyr::ungroup() #%>%
 #DATASET NAME Census_hb.
 
 
@@ -644,8 +635,8 @@ filter(dd_code_1 != "100" & (census_flag == 'Y' |
                        census_OBDs_in_Month = sum(obds_in_the_month))
   dplyr::ungroup() %>%
   arrange(nhs_board, delay_category) %>%
-  mutate(census_total_2 = census_discharge_within_3_days_census + census) %>%
-    write_csv(here("Provisional Census and OBD totals.csv"))
+  mutate(census_total_2 = census_discharge_within_3_days_census + census) #%>%
+#    write_csv(here("Provisional Census and OBD totals.csv"))
 
 
   
