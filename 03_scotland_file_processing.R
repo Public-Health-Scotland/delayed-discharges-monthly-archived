@@ -248,7 +248,7 @@ datafile <- datafile %>%
                          dd_code_2 %in% c("71X","25X","24EX","24DX")
                          ~ "Other code 9 reasons (not AWI)",
                          dd_code_2 %in% c("51X") ~ "Adults with Incapacity Act"),
-# 3. Reason Codes INDIVIDUAL - Post July 2016.
+  # Reason Codes INDIVIDUAL - Post July 2016.
   delay_description = case_when(dd_code_1 == "11A"
     ~ "Awaiting commencement of post-hospital social care assessment (including transfer to another area team). Social care includes home care and social work OT",
     dd_code_1 == "11B" 
@@ -315,23 +315,24 @@ datafile <- datafile %>%
   # Create census flag
 ################################################################################
 # Is this handling missing dates correctly? Code to "No"???
-  census_flag = case_when(is.na(date_declared_medically_fit) | is.na(census_date) ~ NA_character_,
-                          is.na(discharge_date) & date_declared_medically_fit == 
-                          census_date & (dd_code_2 != "26X" | dd_code_2 != "46X") 
+  census_flag = case_when(is.na(date_declared_medically_fit) ~ "N",
+                          is.na(discharge_date) & date_declared_medically_fit < 
+                          census_date & ((is.na(dd_code_2) | dd_code_2 != "26X" | dd_code_2 != "46X")) 
                           ~ "Y",
-                        discharge_date >= census_date & 
-                          date_declared_medically_fit == census_date & 
-                          (dd_code_2 != "26X" | dd_code_2 != "46X")
+                        !is.na(discharge_date) & discharge_date >= census_date & 
+                          date_declared_medically_fit < census_date & 
+                          ((is.na(dd_code_2) | dd_code_2 != "26X" | dd_code_2 != "46X"))
                         ~ "Y",
-                        discharge_date <= census_date & 
-                          (dd_code_2 != "26X" | dd_code_2 != "46X")
-                        ~ "",
-                        discharge_date == date_declared_medically_fit & 
-                          (dd_code_2 != "26X" | dd_code_2 != "46X") 
-                        ~ "",
-                        discharge_date >= census_date & 
-                          (dd_code_2 != "26X" | dd_code_2 != "46X") 
-                        ~ ""),
+                        !is.na(discharge_date) & discharge_date <= census_date & 
+                          ((is.na(dd_code_2) | dd_code_2 != "26X" | dd_code_2 != "46X"))
+                        ~ "N",
+                        !is.na(discharge_date) & discharge_date == date_declared_medically_fit & 
+                          ((is.na(dd_code_2) | dd_code_2 != "26X" | dd_code_2 != "46X"))
+                        ~ "N",
+                        !is.na(discharge_date) & discharge_date >= census_date & 
+                          ((is.na(dd_code_2) | dd_code_2 != "26X" | dd_code_2 != "46X")) # (dd_code_2 != "26X" | dd_code_2 != "46X") 
+                        ~ "N",
+                        TRUE ~ "N"),
          
          # Flag those discharged up to 3 working days after census 
          # (NOTE census is always last THURS of month).
@@ -339,15 +340,20 @@ datafile <- datafile %>%
          # 1 Identify Census Date + 3 working days:
          census_date_plus_3_working_days = census_date + days(5),
          
-         # 2 Flag those with a discharge date le census_date_plus_3_working_days 
+################################################################################
+#Is this handling NAs correctly?
+# 2 Flag those with a discharge date le census_date_plus_3_working_days 
          # and check against BO variable CENSUSDISCHARGEWITHIN3WORKINGDAYS.
          discharge_within_3_days_census =
            case_when(is.na(discharge_date) ~ 0,
                      census_flag == "Y" & 
                        discharge_date < census_date_plus_3_working_days & 
                        dd_code_1 != "100" &
-                       (dd_code_2 != "26X" & dd_code_2 != "46X") ~ 1,
+                       (is.na(dd_code_2) | (dd_code_2 != "26X" & dd_code_2 != "46X")) ~ 1,
                         FALSE ~ 0),
+# group_by(census_flag, dd_code_1, dd_code_2, discharge_within_3_days_census) %>%
+# summarise(total = n()) %>%
+# ungroup()#,
   
          # Check - should be zero cases returned.
          # census_flagcheck <- filter(datafile, discharge_within_3_days_census = 1 & census_flag == "")
@@ -355,19 +361,17 @@ datafile <- datafile %>%
          # count(census_flagcheck, chi_number, census_flag) %>%
          #   spread(census_flag, n)
          
-         
-         
-         ### 4.Next section ----
-
          # Flag whether date_declared_medically_fit in current month
          drmd_in_month = case_when(
            date_declared_medically_fit >= first_dom & 
-             date_declared_medically_fit <= last_dom ~ "Y"),
+             date_declared_medically_fit <= last_dom ~ "Y",
+           TRUE ~ "N"),
          
          # Flag whether discharge date in current month
          date_discharge_in_month = case_when(
            discharge_date >= first_dom & 
-             discharge_date <= last_dom ~ "Y"),
+             discharge_date <= last_dom ~ "Y",
+           TRUE ~ "N"),
          
          # Now there are 2 variables which will make it easier to calculate OBDs
          # in the month.
@@ -386,54 +390,25 @@ datafile <- datafile %>%
          # inaccurate in terms of capturing days delayed. This is why the 
          # computations below ADD 1 to records where DRMD is not in current 
          # month.  DC 040816.
-         
          obds_in_the_month = case_when(
            drmd_in_month == "Y" & date_discharge_in_month == "Y" ~
              as.period(lubridate::interval(date_declared_medically_fit, 
                                            discharge_date), "days"),
-           drmd_in_month == NA_character_ & date_discharge_in_month == "Y" ~
-             as.period(lubridate::interval(first_dom, discharge_date), "days"),# + days(1),
-           drmd_in_month == "Y" & date_discharge_in_month != "Y" ~
+           drmd_in_month == "N" & date_discharge_in_month == "Y" ~
+             as.period(lubridate::interval(first_dom, discharge_date), "days"), # + days(1),
+           drmd_in_month == "Y" & date_discharge_in_month == "N" ~
              as.period(lubridate::interval(date_declared_medically_fit, 
-                                           last_dom), "days"),
-           drmd_in_month == NA_character_ & date_discharge_in_month != "Y" ~ 
-             as.period(lubridate::interval(first_dom, last_dom), "days")# + days(1)
-         ))#,
-         # OBDS in the current month - END.
+                                           last_dom), "days"), # + days(1)
+           drmd_in_month == "N" & date_discharge_in_month == "N" ~ 
+             as.period(lubridate::interval(first_dom, last_dom), "days")
+           ),
          
-         # Check for records where OriginalDateReadyforDischarge (ORDD) <> 
-         # DateReadyforMedicalDischarge (DRMD).
-         #   mutate(ORDDneDRMD <- if(OriginalDateReadyforDischarge != DateReadyforMedicalDischarge)
-         #     ~  "Y") %>%
-         #   filter(ORDDneDRMD == 'Y' & 
-         #            OriginalDateReadyforDischarge > DateReadyforMedicalDischarge) %>% 
-         # #unique(datafile$Healthboard)
-         #   mutate(RDD2 <- case_when(ORDDneDRMD == 'Y' & OriginalDateReadyforDischarge > 
-         #                             DateReadyforMedicalDischarge 
-         #                           ~ OriginalDateReadyforDischarge,
-         #                           ORDDneDRMD == 'Y' & DateReadyforMedicalDischarge > 
-         #                             OriginalDateReadyforDischarge 
-         #                           ~ DateReadyforMedicalDischarge),
-         
-         # NOTE: HAVE NOT UPDATED ready_for_discharge_date TO LATEST RDD (RDD2) 
-         # BECAUSE ready_for_discharge_date IS STILL REQUIRED TO CALCULATE OBDs WHICH
-         # NEED TO COUNT FULL LENGTH OF DELAY - NOT JUST FROM LATEST RDD.   DC 241016
-         
-         # NOW CALCULATE DELAY AT CENSUS BASED ON LATEST READY FOR DISCHARGE DATE.  DC 201016
-         # Second compute clause updated to calculate length of delay at census from ORIGINAL RDD where the RDD2 (latest) is AFTER the census date
-         # delay_at_census <- case_when(
-         #   census_flag == 'Y' & ORDDneDRMD == 'Y' & RDD2 < Census_Date 
-         #   ~ lubridate::interval(RDD2, Census_Date),
-         #   census_flag == 'Y' & ORDDneDRMD == 'Y' & RDD2 > Census_Date 
-         #   ~ lubridate::interval(OriginalDateReadyforDischarge, Census_Date),
-         #   census_flag == 'Y' 
-         #   ~ lubridate::interval(ready_for_discharge_date, Census_Date)),
          # LENGTH OF DELAY AT CENSUS POINT.
          delay_at_census = case_when(census_flag == "Y" & 
-                              date_declared_medically_fit < census_date 
-                              ~ lubridate::interval(date_declared_medically_fit, 
-                                                    census_date),
-                              census_flag == "" ~ 0),
+                                       date_declared_medically_fit < census_date 
+                  ~ lubridate::time_length(interval(date_declared_medically_fit, 
+                                                    census_date), "days"),
+                                       census_flag == "N" ~ 0),
          # DELAY LENGTH GROUP 
          # Values:
          # 1-3 days
@@ -529,12 +504,9 @@ datafile <- datafile %>%
     mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & census_flag == "Y", 
                   lag(error_Duplicate_CHI_Census), error_Duplicate_CHI_Census)) %>%
   dplyr::ungroup() %>%
-  
-  # DELAY LOCATION (acute, gpled, notgpled) while spec still in data.
-  # Note: lookup below is Acute hospitals ONLY.
-  # get file = '/conf/delayed_discharges/Acute hospital lookup2.sav'.
+    # DELAY LOCATION (acute, gpled, notgpled) while spec still in data.
   dplyr::arrange(location)
-  
+
   # Create location name lookup.
   hospital_lookup <- bind_rows(readr::read_rds(paste0(
     plat_filepath, "linkage/output/lookups/Unicode/National Reference Files/",
@@ -571,7 +543,7 @@ datafile <- datafile %>%
 # DERIVATIONS END
   
   # Set NoofPatients variable to 1 for all records (incl Islands/d&g).
-  mutate(NoofPatients = 1) %>%
+  mutate(NoofPatients = 1)
 #unique NoofPatients
 
 # save outfile = !Filepath + 'scotland_temp.sav'.
@@ -583,36 +555,40 @@ datafile <- datafile %>%
 # get file = !Filepath + 'scotland_temp.sav'.
 
 
-  # Create a provisional HB census total - excl Code 100.
-  filter(dd_code_1 != "100" & (census_flag == 'Y' | 
-                               discharge_within_3_days_census == 1)) #%>%
+# Create a provisional HB census total - excl Code 100.
+census_hb <- datafile %>%
+  filter(dd_code_1 != "100" & 
+           (census_flag == 'Y' | discharge_within_3_days_census == 1)) %>%
   group_by(nhs_board, discharge_within_3_days_census, reason_grp_high_level) %>%
     summarise(census_total_hb = n()) %>%
-    dplyr::ungroup() #%>%
-#DATASET NAME Census_hb.
+    dplyr::ungroup()
 
 
 # Create a provisional HB/LA census total - excl Code 100.
-  filter(dd_code_1 != "100" & (census_flag == 'Y' | 
-                                 discharge_within_3_days_census == 1)) %>%
-    tidylog::group_by(nhs_board, local_authority_code, 
-                      discharge_within_3_days_census, reason_grp_high_level) %>%
-    tidylog::summarise(census_total_la <- n())
-  dplyr::ungroup() %>%
-# DATASET NAME Census_la.
-
+census_la <- datafile %>%
+  filter(dd_code_1 != "100" & 
+           (census_flag == 'Y' | discharge_within_3_days_census == 1)) %>%
+  group_by(nhs_board, local_authority_code, discharge_within_3_days_census, 
+           reason_grp_high_level) %>%
+  summarise(census_total_la = n()) %>%
+  dplyr::ungroup()
 
 # Create a provisional HB OBD total- excl Code 100
+obd_hb <- datafile %>%
   filter(dd_code_1 != "100") %>%
     tidylog::group_by(nhs_board, reason_grp_high_level) %>%
-    tidylog::summarise(OBDs_in_Month_hb = sum(obds_in_the_month))
-  dplyr::ungroup() %>%
-# DATASET NAME OBDs_hb.
+    tidylog::summarise(OBDs_in_Month_hb = sum(obds_in_the_month)) %>%
+  dplyr::ungroup()
+
   # Create a provisional LA OBD total- excl Code 100
+obd_la <- datafile %>%
   filter(dd_code_1 != "100") %>%
     tidylog::group_by(nhs_board, local_authority_code, reason_grp_high_level) %>%
-    tidylog::summarise(OBDs_in_Month_la = sum(obds_in_the_month))
-  dplyr::ungroup() %>%
+    tidylog::summarise(OBDs_in_Month_la = sum(obds_in_the_month)) %>%
+  dplyr::ungroup()
+
+census <- bind_rows(census_la, census_hb, obd_la, obd_hb)
+
     if(reason_grp_high_level != "Code 9") mutate(reason_grp_high_level = "HSC/PCF") %>%
     dplyr::rename(delay_category = reason_grp_high_level) %>%
     tidyr::replace_na(list(census_total_hb = 0,
@@ -632,7 +608,7 @@ datafile <- datafile %>%
 #rename these!
   tidylog::summarise(census_discharge_within_3_days_census == 
                        sum(discharge_within_3_days_census), census = sum(census),
-                       census_OBDs_in_Month = sum(obds_in_the_month))
+                       census_OBDs_in_Month = sum(obds_in_the_month)) %>%
   dplyr::ungroup() %>%
   arrange(nhs_board, delay_category) %>%
   mutate(census_total_2 = census_discharge_within_3_days_census + census) #%>%
