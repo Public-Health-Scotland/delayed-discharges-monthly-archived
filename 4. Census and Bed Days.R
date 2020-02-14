@@ -176,7 +176,7 @@ HBbysubreasongrouping <- datafile4 %>%
 write_sav(HBbysubreasongrouping,paste0(filepath,"HB by sub reason grouping.sav")) # save out file
 
 
-#Breakdown for LAs (Level=2)
+#Breakdown for LAs (Level=3)
 datafile4$level<-"3"
 datafile4<-datafile4 %>% mutate(areaname=la)
 
@@ -317,6 +317,10 @@ Scotlandhighlevelgrouping <- datafile2 %>%
 
 
 write_sav(Scotlandhighlevelgrouping,paste0(filepath,"Scotland high level groupings.sav")) # save out file
+
+#code
+datafile3<-datafile2 %>% mutate(reas1<-"All")
+
 
 
 
