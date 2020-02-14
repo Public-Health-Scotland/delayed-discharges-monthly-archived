@@ -688,7 +688,7 @@ datafile2 %<>%
     values_to = "Total"
   )
 
-            
+             
 
 #Provisional Census / OBD figures
 
