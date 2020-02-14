@@ -98,7 +98,8 @@ datafile <- datafile %>%
 
          # Recode delay reason
          # Set blank codes to 11A
-         dd_code_1 <- case_when(!is.na(dd_code_1) & dd_code_1 == " " & dd_code_2 == " " ~ "11A",
+         dd_code_1 <- case_when(!is.na(dd_code_1) & dd_code_1 == " " & 
+                                  dd_code_2 == " " ~ "11A",
                                # recode code 9's
                                !is.na(dd_code_1) & dd_code_1 == "09" ~ "9"),
          # reason code variables to upper case
@@ -201,17 +202,9 @@ datafile <- datafile %>%
 
   #2. Remove any records where Ready for Discharge Date = Last Day of Month
   # (last_dom) - these do not become delays until the 1st of the following month.
-#  mutate(RDD_same_as_last_dom <- case_when(date_declared_medically_fit == last_dom ~ 1)) %>%
-  
-  # Check how many
-  #unique(RDD_same_as_last_dom)
-  
-  # Remove zero delays & delete variable
-#  filter(RDD_same_as_last_dom == 0) %>%
-
   mutate(RDD_same_as_last_dom = ifelse(!is.na(date_declared_medically_fit),
-                                    date_declared_medically_fit == last_dom, 
-                                    FALSE)) %>%
+                                       date_declared_medically_fit == last_dom, 
+                                       FALSE)) %>%
   filter(RDD_same_as_last_dom == FALSE) %>%
   select(-RDD_same_as_last_dom)
 
@@ -317,20 +310,21 @@ datafile <- datafile %>%
 # Is this handling missing dates correctly? Code to "No"???
   census_flag = case_when(is.na(date_declared_medically_fit) ~ "N",
                           is.na(discharge_date) & date_declared_medically_fit < 
-                          census_date & ((is.na(dd_code_2) | dd_code_2 != "26X" | dd_code_2 != "46X")) 
-                          ~ "Y",
+                          census_date & ((is.na(dd_code_2) | dd_code_2 != "26X" 
+                                          | dd_code_2 != "46X")) ~ "Y",
                         !is.na(discharge_date) & discharge_date >= census_date & 
                           date_declared_medically_fit < census_date & 
-                          ((is.na(dd_code_2) | dd_code_2 != "26X" | dd_code_2 != "46X"))
-                        ~ "Y",
+                          ((is.na(dd_code_2) | dd_code_2 != "26X" | 
+                              dd_code_2 != "46X")) ~ "Y",
                         !is.na(discharge_date) & discharge_date <= census_date & 
-                          ((is.na(dd_code_2) | dd_code_2 != "26X" | dd_code_2 != "46X"))
-                        ~ "N",
-                        !is.na(discharge_date) & discharge_date == date_declared_medically_fit & 
-                          ((is.na(dd_code_2) | dd_code_2 != "26X" | dd_code_2 != "46X"))
-                        ~ "N",
+                          ((is.na(dd_code_2) | dd_code_2 != "26X" |
+                              dd_code_2 != "46X")) ~ "N",
+                        !is.na(discharge_date) & discharge_date == 
+                          date_declared_medically_fit & ((is.na(dd_code_2) | 
+                                dd_code_2 != "26X" | dd_code_2 != "46X")) ~ "N",
                         !is.na(discharge_date) & discharge_date >= census_date & 
-                          ((is.na(dd_code_2) | dd_code_2 != "26X" | dd_code_2 != "46X")) # (dd_code_2 != "26X" | dd_code_2 != "46X") 
+                          ((is.na(dd_code_2) | dd_code_2 != "26X" | 
+                              dd_code_2 != "46X")) 
                         ~ "N",
                         TRUE ~ "N"),
          
@@ -349,12 +343,9 @@ datafile <- datafile %>%
                      census_flag == "Y" & 
                        discharge_date < census_date_plus_3_working_days & 
                        dd_code_1 != "100" &
-                       (is.na(dd_code_2) | (dd_code_2 != "26X" & dd_code_2 != "46X")) ~ 1,
-                        TRUE ~ 0),
-# group_by(census_flag, dd_code_1, dd_code_2, discharge_within_3_days_census) %>%
-# summarise(total = n()) %>%
-# ungroup()#,
-  
+                       (is.na(dd_code_2) | (dd_code_2 != "26X" & 
+                                            dd_code_2 != "46X")) ~ 1, TRUE ~ 0),
+
          # Check - should be zero cases returned.
          # census_flagcheck <- filter(datafile, discharge_within_3_days_census = 1 & census_flag == "")
          
@@ -390,7 +381,7 @@ datafile <- datafile %>%
          # inaccurate in terms of capturing days delayed. This is why the 
          # computations below ADD 1 to records where DRMD is not in current 
          # month.  DC 040816.
-         obds_in_the_month = case_when(
+         obds_in_month = case_when(
            drmd_in_month == "Y" & date_discharge_in_month == "Y" ~
              lubridate::time_length(
                lubridate::interval(date_declared_medically_fit, discharge_date),
@@ -412,32 +403,7 @@ datafile <- datafile %>%
                   ~ lubridate::time_length(interval(date_declared_medically_fit, 
                                                     census_date), "days"),
                                        census_flag == "N" ~ 0),
-         # DELAY LENGTH GROUP 
-         # Values:
-         # 1-3 days
-         # 3-14 days
-         # 2-4 weeks
-         # 4-6 weeks
-         # 7-12 weeks
-         # 3-5 months
-         # 6-11 months
-         # 12 months or more
-         # >2 weeks, 4 weeks, 6 weeks
-         # 
-         # DELAY VARIABLES TO BE CREATED & POPULATED WITH COUNTS:
-         #   delay_1_to_3_days
-         # delay_3_to_14_days
-         # delay_2_to_4_weeks
-         # delay_4_to_6_weeks
-         # delay_6_to_12_weeks
-         # Delay3to5months
-         # Delay6to11months
-         # delay_over_12_months
-         # DelayOver3days
-         # DelayUnder2wks
-         # delay_over_2_wks
-         # delay_over_4_wks
-         # delay_over_6_wks
+         # Create delay length group & counts
          week <- 7,
          month <- 30.4375,
          delay_length_group = case_when(delay_at_census >= 1 & delay_at_census <= 3
@@ -504,7 +470,8 @@ datafile <- datafile %>%
   # duplicate - so update Error code for both.
   dplyr::arrange(chi_number, desc(error_Duplicate_CHI_Census)) %>%
   tidylog::group_by(chi_number, census_flag) %>%
-    mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & census_flag == "Y", 
+    mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & 
+                                                  census_flag == "Y", 
                   lag(error_Duplicate_CHI_Census), error_Duplicate_CHI_Census)) %>%
   dplyr::ungroup() %>%
     # DELAY LOCATION (acute, gpled, notgpled) while spec still in data.
@@ -545,11 +512,11 @@ datafile <- datafile %>%
   dplyr::select(-c(total, check2)) %>%
 # DERIVATIONS END
   
-  # Set NoofPatients variable to 1 for all records (incl Islands/d&g).
-  mutate(NoofPatients = 1)
-#unique NoofPatients
+  # Set num_pats variable to 1 for all records (incl Islands/d&g).
+  mutate(num_pats = 1)
+#unique num_pats
 
-# save outfile = !Filepath + 'scotland_temp.sav'.
+# 'scotland_temp.sav' saved out here
 
 
 # PRODUCE PROVISIONAL CENSUS / OBD FIGURES FOR CHECKING AGAINST VERIFICATION FORMS.
@@ -580,14 +547,14 @@ census_la <- datafile %>%
 obd_hb <- datafile %>%
   filter(dd_code_1 != "100") %>%
     tidylog::group_by(nhs_board, reason_grp_high_level) %>%
-    tidylog::summarise(obds_in_month = sum(obds_in_the_month)) %>%
+    tidylog::summarise(obds_in_month = sum(obds_in_month)) %>%
   dplyr::ungroup()
 
   # Create a provisional LA OBD total- excl Code 100
 obd_la <- datafile %>%
   filter(dd_code_1 != "100") %>%
     tidylog::group_by(nhs_board, local_authority_code, reason_grp_high_level) %>%
-    tidylog::summarise(obds_in_month = sum(obds_in_the_month)) %>%
+    tidylog::summarise(obds_in_month = sum(obds_in_month)) %>%
   dplyr::ungroup()
 
 prov_census_la <- merge(census_la, obd_la, all = TRUE)
@@ -613,26 +580,24 @@ prov_census <- dplyr::bind_rows(prov_census_hb, prov_census_la) %>%
                        obs_in_Month = sum(obds_in_month)) %>%
   dplyr::ungroup() %>%
   arrange(nhs_board, local_authority_code, delay_category) %>%
-  mutate(overall_total = discharge_within_3_days_census + census_total) #%>%
-#    write_csv(here("Provisional Census and OBD totals.csv"))
+  mutate(overall_total = discharge_within_3_days_census + census_total) %>%
+    readr::write_csv(readr::write_csv(paste0(filepath, census_date,
+                                    "_Provisional Census and OBD totals.csv")))
 
 
   
 # ADD SPECIALTY DESCRIPTION.
 # Original lookup file here
 specialty_group <- readr::read_rds(paste0(plat_filepath,
-                                          "linkage/output/lookups/Unicode/National Reference Files/",
+                    "linkage/output/lookups/Unicode/National Reference Files/",
                                           "specialt.rds")) %>%
   select(speccode, description) %>%
   rename(spec_code = speccode,
          spec_desc = description)
-#needed???
-#  mutate(RDD_day = date_declared_medically_fit,
-#         disch_day = discharge_date)
 
 datafile <- datafile %>%
   arrange(discharge_specialty_nat_code) %>%
-  left_join(specialty_group, by = c("discharge_specialty_nat_code" = "spec_code")) #%>%
+  left_join(specialty_group, by = c("discharge_specialty_nat_code" = "spec_code"))
   
 # MATCH FILE WITH LATEST NATIONAL POSTCODE DIRECTORY FILE - This will add 
 #DATAZONE2011.
@@ -665,75 +630,6 @@ datafile <- datafile %>%
 ### 3 - Save data ----
 write_csv(datafile, paste0(filepath, census_date, "_SCOTLAND.csv"))
 
-# SAVE OUTFILE=!Filepath + 'SCOTLAND.sav'
-# /KEEP MONTHFLAG
-# Healthboard
-# LocalAuthorityArea
-# PatientPostcode
-# DataZone2011
-# HSCPLocality_derived
-# HSCP2019_derived
-# Outofareacaseindicator
-# CHINo
-# DuplicateCHI
-# error_DuplicateCHI_Census
-# census_flag
-# Census_Date
-# HealthLocationCode
-# hospname
-# Gender
-# PatientDOB
-# AGEATRDD
-# AgeGrouping
-# SpecialtyCode
-# SpecialtyDesc
-# OriginalAdmissionDate
-# DateReferralReceived
-# ready_for_discharge_date
-# RDD_Day
-# DateDischarge
-# DischDay
-# discharge_within_3_days_census
-# date_discharge_in_month
-# DischargeReason
-# obds_in_the_month
-# delay_at_census
-# REASONFORDELAY
-# REASONFORDELAYSECONDARY
-# reason_grp_high_level
-# reason_grp
-# DELAY_DESCRIPTION
-# NoofPatients
-# delay_length_group
-# delay_1_to_3_days
-# delay_3_to_14_days
-# delay_2_to_4_weeks
-# delay_4_to_6_weeks
-# delay_6_to_12_weeks
-# delay_3_to_6_months
-# delay_6_to_12_months
-# delay_over_12_months
-# DelayOver3days
-# DelayUnder2wks
-# delay_over_2_wks
-# delay_over_4_wks
-# delay_over_6_wks
-# acute
-# gpled
-# notgpled
-# FirstDoM
-# LastDoM
-# dob2
-# rmddate
-# CensusDate_Plus3WorkingDays
-# first_dom
-# last_dom
-# drmd_in_month
-# week
-# month
-# /COMPRESSED.
-# EXECUTE.
-      
 # Save as Scotland_validated (same file with some unnecessary variables removed)
 # age_grp, specialty_group?
       datafile <- datafile %>%
@@ -747,32 +643,22 @@ write_csv(datafile, paste0(filepath, census_date, "_SCOTLAND.csv"))
                discharge_within_3_days_census, discharge_to_code, obds_in_month, 
                delay_at_census, reason_grp_high_level, reason_grp, dd_code_1, 
                dd_code_2, delay_description, 
-               no_of_pats, delay_length_group, delay_1_to_3_days, delay_3_to_14_days,
-               delay_2_to_4_weeks, delay_4_to_6_weeks, delay_6_to_12_weeks, delay_3_to_6_months,
-               delay_6_to_12_months, delay_over_12_months, delay_over_2_wks, 
-               delay_over_4_wks, delay_over_6_wks, acute, gpled, notgpled) #%>%
-        write_csv(paste0(filepath, census_date,
-                        "_Scotland_validated.csv")) %>%
+               num_pats, delay_length_group, delay_1_to_3_days, delay_3_to_14_days,
+               delay_2_to_4_weeks, delay_4_to_6_weeks, delay_6_to_12_weeks, 
+               delay_3_to_6_months, delay_6_to_12_months, delay_over_12_months, 
+               delay_over_2_wks, delay_over_4_wks, delay_over_6_wks, acute, 
+               gpled, notgpled)
 
 # Remove any records which have the RDD and Discharge Date the same as they will
 # have zero delays.
-        mutate_if(ready_for_discharge_date == DateDischarge, removed = "Yes") %>%
-        filter(removed != "Yes") %>%
-        write_csv(paste0(filepath, census_date,
-                         "_removed.csv")) %>%
-        select(-removed) %>%
-        write_csv(paste0(filepath, census_date,
-                         "SCOTLAND_validated.csv"))
-
-# Need an excel file in addition to csv?
-# SAVE TRANSLATE OUTFILE= !Filepath + 'SCOTLAND_validated.xlsx'
-# /TYPE=XLS
-# /VERSION=12
-# /MAP
-# /REPLACE
-# /FIELDNAMES
-# /COMPRESSED
-# /CELLS=VALUES.
-
+        removed_records <- datafile %>%
+        filter(ready_for_discharge_date == discharge_date) %>%
+        readr::write_csv(paste0(filepath, census_date,
+                         "_removed.csv"))
+      
+        datafile <- datafile %>%
+          filter(ready_for_discharge_date != discharge_date) %>%
+          readr::write_csv(paste0(filepath, census_date,
+                         "_SCOTLAND_validated.csv"))
 
 ### END OF SCRIPT ###
