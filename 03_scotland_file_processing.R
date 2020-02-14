@@ -350,7 +350,7 @@ datafile <- datafile %>%
                        discharge_date < census_date_plus_3_working_days & 
                        dd_code_1 != "100" &
                        (is.na(dd_code_2) | (dd_code_2 != "26X" & dd_code_2 != "46X")) ~ 1,
-                        FALSE ~ 0),
+                        TRUE ~ 0),
 # group_by(census_flag, dd_code_1, dd_code_2, discharge_within_3_days_census) %>%
 # summarise(total = n()) %>%
 # ungroup()#,
@@ -392,15 +392,18 @@ datafile <- datafile %>%
          # month.  DC 040816.
          obds_in_the_month = case_when(
            drmd_in_month == "Y" & date_discharge_in_month == "Y" ~
-             as.period(lubridate::interval(date_declared_medically_fit, 
-                                           discharge_date), "days"),
+             lubridate::time_length(
+               lubridate::interval(date_declared_medically_fit, discharge_date),
+               "days"),
            drmd_in_month == "N" & date_discharge_in_month == "Y" ~
-             as.period(lubridate::interval(first_dom, discharge_date), "days"), # + days(1),
+             lubridate::time_length(lubridate::interval(first_dom, 
+                                                      discharge_date), "days"), # + days(1),
            drmd_in_month == "Y" & date_discharge_in_month == "N" ~
-             as.period(lubridate::interval(date_declared_medically_fit, 
-                                           last_dom), "days"), # + days(1)
+             lubridate::time_length(
+               lubridate::interval(date_declared_medically_fit, last_dom), 
+               "days"), # + days(1)
            drmd_in_month == "N" & date_discharge_in_month == "N" ~ 
-             as.period(lubridate::interval(first_dom, last_dom), "days")
+             lubridate::time_length(lubridate::interval(first_dom, last_dom), "days")
            ),
          
          # LENGTH OF DELAY AT CENSUS POINT.
@@ -560,7 +563,7 @@ census_hb <- datafile %>%
   filter(dd_code_1 != "100" & 
            (census_flag == 'Y' | discharge_within_3_days_census == 1)) %>%
   group_by(nhs_board, discharge_within_3_days_census, reason_grp_high_level) %>%
-    summarise(census_total_hb = n()) %>%
+    summarise(census_total = n()) %>%
     dplyr::ungroup()
 
 
@@ -570,102 +573,97 @@ census_la <- datafile %>%
            (census_flag == 'Y' | discharge_within_3_days_census == 1)) %>%
   group_by(nhs_board, local_authority_code, discharge_within_3_days_census, 
            reason_grp_high_level) %>%
-  summarise(census_total_la = n()) %>%
+  summarise(census_total = n()) %>%
   dplyr::ungroup()
 
 # Create a provisional HB OBD total- excl Code 100
 obd_hb <- datafile %>%
   filter(dd_code_1 != "100") %>%
     tidylog::group_by(nhs_board, reason_grp_high_level) %>%
-    tidylog::summarise(OBDs_in_Month_hb = sum(obds_in_the_month)) %>%
+    tidylog::summarise(obds_in_month = sum(obds_in_the_month)) %>%
   dplyr::ungroup()
 
   # Create a provisional LA OBD total- excl Code 100
 obd_la <- datafile %>%
   filter(dd_code_1 != "100") %>%
     tidylog::group_by(nhs_board, local_authority_code, reason_grp_high_level) %>%
-    tidylog::summarise(OBDs_in_Month_la = sum(obds_in_the_month)) %>%
+    tidylog::summarise(obds_in_month = sum(obds_in_the_month)) %>%
   dplyr::ungroup()
 
-census <- bind_rows(census_la, census_hb, obd_la, obd_hb)
-
-    if(reason_grp_high_level != "Code 9") mutate(reason_grp_high_level = "HSC/PCF") %>%
+prov_census_la <- merge(census_la, obd_la, all = TRUE)
+prov_census_hb <- merge(census_hb, obd_hb, all = TRUE)
+prov_census <- dplyr::bind_rows(prov_census_hb, prov_census_la) %>%
+  mutate(reason_grp_high_level = ifelse(reason_grp_high_level != "Code 9", 
+                                        "HSC/PCF", reason_grp_high_level)) %>%
     dplyr::rename(delay_category = reason_grp_high_level) %>%
-    tidyr::replace_na(list(census_total_hb = 0,
-                           census_total_la = 0,
-                           OBDs_in_Month_hb = 0,
-                           OBDs_in_Month_la = 0)) %>%
+    tidyr::replace_na(list(census_total = 0,
+                           obds_in_month = 0)) %>%
     # Copy Census Figure to discharge_within_3_days_census column.
-  mutate_if(discharge_within_3_days_census == 1, 
-            discharge_within_3_days_census <- census_total) %>%
+  mutate(discharge_within_3_days_census = ifelse(discharge_within_3_days_census 
+                          == 1, census_total, discharge_within_3_days_census),
     # Now set Census value to 0 if there is a value in 
     # discharge_within_3_days_census column.
-  mutate_if(discharge_within_3_days_census > 0, census_total <- 0) %>%
+  census_total = ifelse(discharge_within_3_days_census > 0, 0, census_total)) %>%
     # This is so that both columns can be aggregated then summed to get a Census 
     # figure including those discharged within 3 days of census.
-    tidylog::group_by(nhs_board, local_authority_code, delay_category) %>%
-################################################################################
-#rename these!
-  tidylog::summarise(census_discharge_within_3_days_census == 
-                       sum(discharge_within_3_days_census), census = sum(census),
-                       census_OBDs_in_Month = sum(obds_in_the_month)) %>%
+  tidylog::group_by(nhs_board, local_authority_code, delay_category) %>%
+  tidylog::summarise(discharge_within_3_days_census = 
+                       sum(discharge_within_3_days_census), 
+                       census_total = sum(census_total),
+                       obs_in_Month = sum(obds_in_month)) %>%
   dplyr::ungroup() %>%
-  arrange(nhs_board, delay_category) %>%
-  mutate(census_total_2 = census_discharge_within_3_days_census + census) #%>%
+  arrange(nhs_board, local_authority_code, delay_category) %>%
+  mutate(overall_total = discharge_within_3_days_census + census_total) #%>%
 #    write_csv(here("Provisional Census and OBD totals.csv"))
 
 
   
-datafile <- datafile %>%
-#needed???
-  mutate(RDD_day = date_declared_medically_fit,
-         disch_day = discharge_date)
 # ADD SPECIALTY DESCRIPTION.
 # Original lookup file here
-  arrange(dischare_specialty_nat_code)
-  
-  specialty_group <- read_spss(paste0(plat_filepath, "delayed_discharges/Data files/Single Submissions (July 2016 onwards)/Specialty.sav"))
+specialty_group <- readr::read_rds(paste0(plat_filepath,
+                                          "linkage/output/lookups/Unicode/National Reference Files/",
+                                          "specialt.rds")) %>%
+  select(speccode, description) %>%
+  rename(spec_code = speccode,
+         spec_desc = description)
+#needed???
+#  mutate(RDD_day = date_declared_medically_fit,
+#         disch_day = discharge_date)
 
-    datafile <- datafile %>%
-    tidylog::left_join(specialty_group, by = "discharge_specialty_nat_code" = "SpecialtyCode") %>%
-# unique SpecialtyDesc
-      
-# ADD HOSPITAL NAME - for ALL hospitals, not just Acute..
-      dplyr::arrange(location) %>%
-      tidylog::left_join(select(hospital_lookup, c(Location, Locname), 
-                                by = "location")) %>%
-      rename(health_location_code = Location, hosp_name = Locname) %>%
-      
-      # MATCH FILE WITH LATEST NATIONAL POSTCODE DIRECTORY FILE - This will 
-      # add DATAZONE2011.
-      
-      postcode_lookup <- read_spss(paste0(plat_filepath, 
-              "lookups/Unicode/Unicode/Geography/Scottish Postcode Directory/",
-              "Scottish_Postcode_Directory_2019_2.sav")) %>%
-          select(pc7, DataZone2011Code) %>%
-          rename(postcode = pc7,
-                 dz_2011  = DataZone2011Code)
-    
-    dz_2011_lookup <- read_spss(paste0(plat_filepath, 
-                                    "lookups/Unicode/Geography/HSCP Locality/",
-                                    "HSCP Localities_DZ11_Lookup_20180903.sav")) %>%
-      select(Datazone2011, HSCPLocality, HSCP2019Name) %>%
-      rename(dz_2011 = Datazone2011,
-             HSCP_Locality_derived = HSCPLocality,
-             HSCP_2019_Name_derived  = HSCP2019Name)
-        
-      datafile <- datafile %>%
-        dplyr::arrange(postcode) %>%
-        tidylog::left_join(postcode_lookup, by = "postcode") %>%
-      # NEXT, USE DATAZONE TO MATCH ON HSCP LOCALITY AND HSCP, USING LOOKUP
-        dplyr::arrange(dz_2011) %>%
-        tidylog::left_join(postcode_lookup, by = "dz_2011") %>%
-          
-        # Save as Scotland file.
-        dplyr::arrange(Healthboard,CHINo,ready_for_discharge_date)
-        
-        ### 3 - Save data ----
-      write_csv(datafile, paste0(filepath, census_date, "_SCOTLAND.csv"))
+datafile <- datafile %>%
+  arrange(discharge_specialty_nat_code) %>%
+  left_join(specialty_group, by = c("discharge_specialty_nat_code" = "spec_code")) #%>%
+  
+# MATCH FILE WITH LATEST NATIONAL POSTCODE DIRECTORY FILE - This will add 
+#DATAZONE2011.
+  
+postcode_lookup <- readr::read_rds(paste0(plat_filepath,
+        "linkage/output/lookups/Unicode/Geography/Scottish Postcode Directory/",
+                                  "Scottish_Postcode_Directory_2019_2.rds")) %>%
+  select(pc7, DataZone2011) %>%
+  rename(postcode = pc7,
+         dz_2011  = DataZone2011)
+
+dz_2011_lookup <- readr::read_rds(paste0(plat_filepath,
+                       "linkage/output/lookups/Unicode/Geography/HSCP Locality/",
+                       "HSCP Localities_DZ11_Lookup_20191216.rds")) %>%
+  select(data_zone2011, hscp_locality, hscp2019name) %>%
+  rename(dz_2011 = data_zone2011,
+         hscp_locality_derived = hscp_locality,
+         hscp_2019_name_derived  = hscp2019name)
+
+datafile <- datafile %>%
+  dplyr::arrange(postcode) %>%
+  tidylog::left_join(postcode_lookup, by = "postcode") %>%
+  # NEXT, USE DATAZONE TO MATCH ON HSCP LOCALITY AND HSCP, USING LOOKUP
+  dplyr::arrange(dz_2011) %>%
+  tidylog::left_join(dz_2011_lookup, by = "dz_2011") %>%
+  
+  # Save as Scotland file.
+  dplyr::arrange(nhs_board, chi_number, ready_for_discharge_date)
+
+### 3 - Save data ----
+write_csv(datafile, paste0(filepath, census_date, "_SCOTLAND.csv"))
 
 # SAVE OUTFILE=!Filepath + 'SCOTLAND.sav'
 # /KEEP MONTHFLAG
@@ -737,23 +735,22 @@ datafile <- datafile %>%
 # EXECUTE.
       
 # Save as Scotland_validated (same file with some unnecessary variables removed)
+# age_grp, specialty_group?
       datafile <- datafile %>%
         select(monthflag, nhs_board, local_authority_code, postcode, dz_2011,
-               HSCP_locality_derived, HSCP_2019_derived, 
-               out_of_area_case_indicator, chi_number, duplicat_chi, census_flag,
-               census_date, location, hosp_name, gender, date_of_birth, 
-               age_at_rdd, age_grp, discharge_specialty_nat_code, 
-               specialty_group, admission_date, date_referred_for_sw_assessment,
-               ready_for_discharge_date, RDD_day, discharge_date, 
-               discharge_within_3_days_census, discharge_to_code, OBDs_in_Month, 
-               delay_at_census, dd_code_1, dd_code_2, delay_description, 
+               hscp_locality_derived, hscp_2019_name_derived, 
+               out_of_area_case_indicator, chi_number, census_flag,
+               location, location_name, sex_code, date_of_birth, 
+               age_at_rdd, discharge_specialty_nat_code, 
+               admission_date, date_referred_for_sw_assessment,
+               ready_for_discharge_date, discharge_date, 
+               discharge_within_3_days_census, discharge_to_code, obds_in_month, 
+               delay_at_census, reason_grp_high_level, reason_grp, dd_code_1, 
+               dd_code_2, delay_description, 
                no_of_pats, delay_length_group, delay_1_to_3_days, delay_3_to_14_days,
                delay_2_to_4_weeks, delay_4_to_6_weeks, delay_6_to_12_weeks, delay_3_to_6_months,
                delay_6_to_12_months, delay_over_12_months, delay_over_2_wks, 
-               delay_over_4_wks, delay_over_6_wks, acute, gpled, notgpled) %>%
-        rename(reas1 = reason_grp_high_level,
-               reas2 = reason_grp,
-               OBDs = obds_in_the_month) %>%
+               delay_over_4_wks, delay_over_6_wks, acute, gpled, notgpled) #%>%
         write_csv(paste0(filepath, census_date,
                         "_Scotland_validated.csv")) %>%
 
