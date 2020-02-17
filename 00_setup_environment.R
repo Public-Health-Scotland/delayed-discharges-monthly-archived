@@ -35,6 +35,7 @@ library(xlsx)         # used for write.xlsx. Use openxlsx::saveWorkbook once
 
 devtools::install_github("Health-SocialCare-Scotland/phsmethods")
 
+options(stringsAsFactors = FALSE)
 
 ### 2 - Define Whether Running on Server or Locally ----
 # Covers both the old server and the pro one
