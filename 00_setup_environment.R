@@ -35,6 +35,7 @@ library(xlsx)         # used for write.xlsx. Use openxlsx::saveWorkbook once
 
 devtools::install_github("Health-SocialCare-Scotland/phsmethods")
 
+options(stringsAsFactors = FALSE)
 
 ### 2 - Define Whether Running on Server or Locally ----
 # Covers both the old server and the pro one
@@ -56,14 +57,16 @@ filepath <- paste0(plat_filepath, "delayed_discharges/RAP development/2019_07/Ou
 
 ### 3 - Census dates ----
 
-
 # Monthly census snapshot taken on the last Thursday of the month
 census_date <- lubridate::dmy(25072019)
 
-# First date of month
+# First date of census month
 first_dom <- lubridate::floor_date(census_date, "month")
 
-# Last date of the month
+# Last date of the census month
 last_dom <- lubridate::ceiling_date(census_date, "month") - 1
+
+# First month census was run in current form. Used to calculate census number
+first_census_month <- lubridate::dmy(01112006)
 
 ### END OF SCRIPT ###

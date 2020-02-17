@@ -46,7 +46,8 @@ datafile <- readr::read_csv(paste0(filepath,"Allboards_R.csv")) %>%
 # Format variables and recode
 datafile <- datafile %>%
   #CHI NUMBER - Remove leading / trailing spaces & add leading 0 if missing.
-  dplyr::rename(location = discharge_hospital_nat_code) %>%
+  dplyr::rename(location = discharge_hospital_nat_code,
+                spec_code = discharge_specialty_nat_code) %>%
   mutate(chi_number = trimws(chi_number),
          chi_number = ifelse(nchar(chi_number) == 9, paste0("0", chi_number), 
                               chi_number),
@@ -70,18 +71,20 @@ datafile <- datafile %>%
          #   date_declared_medically_fit = lubridate::dmy(date_declared_medically_fit),
          date_declared_medically_fit = as.Date(date_declared_medically_fit, "%d/%m/%y"),
          # Recode discharge reason:
-         discharge_to_code <- case_when(discharge_to_code == "01" ~ "1",
-                                        discharge_to_code == "02" ~ "2",
-                                        discharge_to_code == "03" ~ "3",
-                                        discharge_to_code == "04" ~ "4",
-                                        discharge_to_code == "05" ~ "5",
-                                        discharge_to_code == "06" ~ "6",
-                                       discharge_to_code == "07" ~ "7"),
+         # discharge_to_code = case_when(discharge_to_code == "01" ~ "1",
+         #                                discharge_to_code == "02" ~ "2",
+         #                                discharge_to_code == "03" ~ "3",
+         #                                discharge_to_code == "04" ~ "4",
+         #                                discharge_to_code == "05" ~ "5",
+         #                                discharge_to_code == "06" ~ "6",
+         #                                discharge_to_code == "07" ~ "7",
+         #                               FALSE ~ discharge_to_code))
          # Recode out of area:
-         out_of_area_case_indicator = case_when(out_of_area_case_indicator == "Yes" ~ "Y",
-                     out_of_area_case_indicator == "No" ~ "N",
-                     out_of_area_case_indicator == "no" ~ "N",
-                     out_of_area_case_indicator == "" ~ "N"),
+         out_of_area_case_indicator = case_when(
+                                      is.na(out_of_area_case_indicator) ~ "N",
+                                      out_of_area_case_indicator == "Yes" ~ "Y",
+                                      out_of_area_case_indicator == "No" ~ "N",
+                                      out_of_area_case_indicator == "no" ~ "N"),
          # Recode sex 
          sex_code = case_when(sex_code == "1" ~ "Male",
                               sex_code == "M" ~ "Male",
@@ -98,18 +101,19 @@ datafile <- datafile %>%
 
          # Recode delay reason
          # Set blank codes to 11A
-         dd_code_1 <- case_when(!is.na(dd_code_1) & dd_code_1 == " " & 
-                                  dd_code_2 == " " ~ "11A",
-                               # recode code 9's
-                               !is.na(dd_code_1) & dd_code_1 == "09" ~ "9"),
+         dd_code_1 = case_when(is.na(dd_code_1) ~ NA_character_,
+                                is.na(dd_code_2) & dd_code_1 == " " ~ "11A",
+                                # recode code 9's
+                                dd_code_1 == "09" ~ "9", 
+                                TRUE ~ dd_code_1),
          # reason code variables to upper case
-         dd_code_1 <- case_when(is.na(dd_code_1) ~ NA_character_,
+         dd_code_1 = case_when(is.na(dd_code_1) ~ NA_character_,
                                TRUE ~ toupper(dd_code_1)),
-         dd_code_2 <- case_when(is.na(dd_code_2) ~ NA_character_,
+         dd_code_2 = case_when(is.na(dd_code_2) ~ NA_character_,
                                 TRUE ~ toupper(dd_code_2)),
          # recode old delay reasons
-         dd_code_1 <- case_when(is.na(dd_code_1) ~ NA_character_,
-                                dd_code_1 == "41" ~ "25E",
+         dd_code_1 = case_when(is.na(dd_code_1) ~ NA_character_,
+                               dd_code_1 == "41" ~ "25E",
                                dd_code_1 == "41A" ~ "23C",
                                dd_code_1 == "41B" ~ "23D",
                                dd_code_1 == "43" ~ "24A",
@@ -117,7 +121,8 @@ datafile <- datafile %>%
 # Is the "." a typo??????????????
                                dd_code_1 == "27A." ~ "27",
                                dd_code_1 == "62" ~ "67",
-                               dd_code_1 == "63" ~ "67"),
+                               dd_code_1 == "63" ~ "67",
+                               TRUE ~ dd_code_1),
          
   # Format postcode variable into pc7
   postcode = phimethods::postcode(postcode, format = "pc7"),
@@ -212,8 +217,8 @@ datafile <- datafile %>%
 
 # Derive age groups
 datafile <- datafile %>%
-  mutate(age_grp <- case_when(age_at_rdd <75 ~ "18-74",
-                             age_at_rdd >=75 ~ "75+"),
+  mutate(age_grp = case_when(age_at_rdd < 75 ~ "18-74",
+                             age_at_rdd >= 75 ~ "75+"),
 # Create Reason Code Groupings
 # 1. High level reason code grouping - post July 2016
 # Transport grouped under H&SC reasons as per BO report
@@ -404,8 +409,8 @@ datafile <- datafile %>%
                                                     census_date), "days"),
                                        census_flag == "N" ~ 0),
          # Create delay length group & counts
-         week <- 7,
-         month <- 30.4375,
+         week = 7,
+         month = 30.4375,
          delay_length_group = case_when(delay_at_census >= 1 & delay_at_census <= 3
                                        ~ "1-3 days",
                                       delay_at_census > 3 & delay_at_census <= 14
@@ -440,9 +445,16 @@ datafile <- datafile %>%
          delay_6_to_12_months = dplyr::if_else(delay_at_census > (6*month) &
                                               delay_at_census <= (12*month), 1, 0),
          delay_over_12_months = dplyr::if_else(delay_at_census > (12*month), 1, 0),
-         delay_over_2_wks = dplyr::if_else(delay_at_census > 14, 1, 0),
-         delay_over_4_wks = dplyr::if_else(delay_at_census > 28, 1, 0),
-         delay_over_6_wks = dplyr::if_else(delay_at_census > 42, 1, 0)) %>%
+################################################################################
+# delay_over_3_days & delay_under_2_weeks no longer used. Have added them back in 
+# but remove if confirmed as no longer being used.
+         delay_over_3_days = dplyr::if_else(delay_at_census > 3, 1, 0),
+################################################################################
+# SPSS syntax uses le (<=) 14 days - is this a mistake?
+         delay_under_2_weeks = dplyr::if_else(delay_at_census <= 14, 1, 0),
+         delay_over_2_weeks = dplyr::if_else(delay_at_census > 14, 1, 0),
+         delay_over_4_weeks = dplyr::if_else(delay_at_census > 28, 1, 0),
+         delay_over_6_weeks = dplyr::if_else(delay_at_census > 42, 1, 0)) %>%
 
   # DUPLICATE RECORDS
   
@@ -501,7 +513,7 @@ datafile <- datafile %>%
   tidylog::left_join(hospital_lookup, by = "location") %>%
   dplyr::mutate(acute = dplyr::if_else(is.na(location_name), 1, 0),
                 gpled = dplyr::if_else(acute == 0 & 
-                                          discharge_specialty_nat_code == "E12",
+                                          spec_code == "E12",
                                         1, 0),
                 notgpled = dplyr::if_else(acute == 0 & gpled == 0, 1, 0),
                 # Check to ensure each row only has one of either acute, 
@@ -581,23 +593,23 @@ prov_census <- dplyr::bind_rows(prov_census_hb, prov_census_la) %>%
   dplyr::ungroup() %>%
   arrange(nhs_board, local_authority_code, delay_category) %>%
   mutate(overall_total = discharge_within_3_days_census + census_total) %>%
-    readr::write_csv(readr::write_csv(paste0(filepath, census_date,
-                                    "_Provisional Census and OBD totals.csv")))
+    readr::write_csv(paste0(filepath, census_date,
+                                    "_Provisional Census and OBD totals.csv"))
 
-
-  
 # ADD SPECIALTY DESCRIPTION.
-# Original lookup file here
 specialty_group <- readr::read_rds(paste0(plat_filepath,
                     "linkage/output/lookups/Unicode/National Reference Files/",
-                                          "specialt.rds")) %>%
+                    "specialt.rds")) %>%
   select(speccode, description) %>%
   rename(spec_code = speccode,
-         spec_desc = description)
-
-datafile <- datafile %>%
-  arrange(discharge_specialty_nat_code) %>%
-  left_join(specialty_group, by = c("discharge_specialty_nat_code" = "spec_code"))
+         spec_desc = description) %>%
+  # Remove formats and widths - inherited from SPSS?
+  haven::zap_formats() %>%
+  haven::zap_widths()
+  
+  datafile <- datafile %>%
+    arrange(spec_code) %>%
+    left_join(specialty_group, by = c("spec_code" = "spec_code"))
   
 # MATCH FILE WITH LATEST NATIONAL POSTCODE DIRECTORY FILE - This will add 
 #DATAZONE2011.
@@ -628,7 +640,7 @@ datafile <- datafile %>%
   dplyr::arrange(nhs_board, chi_number, ready_for_discharge_date)
 
 ### 3 - Save data ----
-write_csv(datafile, paste0(filepath, census_date, "_SCOTLAND.csv"))
+readr::write_csv(datafile, paste0(filepath, census_date, "_SCOTLAND.csv"))
 
 # Save as Scotland_validated (same file with some unnecessary variables removed)
 # age_grp, specialty_group?
@@ -637,7 +649,7 @@ write_csv(datafile, paste0(filepath, census_date, "_SCOTLAND.csv"))
                hscp_locality_derived, hscp_2019_name_derived, 
                out_of_area_case_indicator, chi_number, census_flag,
                location, location_name, sex_code, date_of_birth, 
-               age_at_rdd, discharge_specialty_nat_code, 
+               age_at_rdd, spec_code, spec_desc, 
                admission_date, date_referred_for_sw_assessment,
                ready_for_discharge_date, discharge_date, 
                discharge_within_3_days_census, discharge_to_code, obds_in_month, 
@@ -646,8 +658,8 @@ write_csv(datafile, paste0(filepath, census_date, "_SCOTLAND.csv"))
                num_pats, delay_length_group, delay_1_to_3_days, delay_3_to_14_days,
                delay_2_to_4_weeks, delay_4_to_6_weeks, delay_6_to_12_weeks, 
                delay_3_to_6_months, delay_6_to_12_months, delay_over_12_months, 
-               delay_over_2_wks, delay_over_4_wks, delay_over_6_wks, acute, 
-               gpled, notgpled)
+               delay_over_3_days, delay_under_2_weeks, delay_over_2_weeks, 
+               delay_over_4_weeks, delay_over_6_weeks, acute, gpled, notgpled)
 
 # Remove any records which have the RDD and Discharge Date the same as they will
 # have zero delays.
