@@ -401,7 +401,6 @@ datafile7<-datafile7 %>% mutate(delay_1_to_3_days==
                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons"),0,delay_1_to_3_days))
 
-
 datafile7<-datafile7 %>% mutate(delay_3_to_14_days,
                       if_else(age_grp!="All" & 
                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",

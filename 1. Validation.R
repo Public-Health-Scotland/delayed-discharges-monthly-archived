@@ -9,54 +9,40 @@ month_start<-ymd("2019/07/01")
 month_end<-ymd("2019/07/31")
 
 Monthflag<-("Jul 2019")
-Healthboard<-("glasgow")
+nhs_board<-("glasgow")
+
+filepath<-("/conf/delayed_discharges/RAP development/2019_07/Outputs/")
+filepath2<-("/conf/delayed_discharges/RAP development/2019_07/Data/glasgow/")
 
 ### Get data file ( csv )
 
-datafile<-read_csv(paste0(filepath2,Healthboard,".csv"))
+datafile<-read.csv(paste0(filepath2,nhs_board,".csv"))
 
-# initial data checks
-
-datafile <- datafile %>% 
-  rename(Healthboard = `NHS Board`,
-         HealthLocationCode = `Discharge Hospital Nat Code`,
-         CHINo=`CHI Number`,
-         PatientPostcode=Postcode,
-         LocalAuthorityArea=`Local Authority Code`,
-         PatientDOB=`Date of Birth`,
-         SpecialtyCode=`Discharge Specialty Nat Code`,
-         DateReferralReceived=`Date Referred for SW Assessment`,
-         Readyfordischargedate=`Date Declared Medically Fit`,
-         REASONFORDELAY=DD_Code_1,
-         REASONFORDELAYSECONDARY=DD_Code_2,
-         Outofareacaseindicator=`Out of Area Case Indicator`,
-         OriginalAdmissionDate=`Admission Date`,
-         Gender=`Sex Code`,
-         DateDischarge=`Discharge Date`,
-         DischargeReason=`Discharge To Code`)
+datafile <-
+  datafile %>% clean_names()
 
 
 #REVIEW FREQUENCY TABLES 
-table(datafile$Healthboard)
-table(datafile$LocalAuthorityArea)
-table(datafile$SpecialtyCode)
-table(datafile$REASONFORDELAY)
-table(datafile$REASONFORDELAYSECONDARY)
-table(datafile$Gender)
+table(datafile$nhs_board)
+table(datafile$local_authority_code)
+table(datafile$discharge_specialty_nat_code)
+table(datafile$dd_code_1)
+table(datafile$dd_code_2)
+table(datafile$sex_code)
 
-trimws(datafile$CHINo) # trim the chino to ensure no rogue spaces at beginning or end
+trimws(datafile$chi_number) # trim the chi_number to ensure no rogue spaces at beginning or end
 
-#str_pad(datafile$CHINo, 10, pad = "0") # could use this or the following script
+#str_pad(datafile$chi_number, 10, pad = "0") # could use this or the following script
 
 datafile<-datafile  %>%
-  mutate(CHINo=as.character(CHINo)) %>% 
-  mutate(CHINo = ifelse(nchar(CHINo) == 9, paste0("0", CHINo), CHINo))
-View(datafile$CHINo)
-count(datafile, substr(CHINo, 9, 9))
-#Change numeric to a string character for CHINo
+  mutate(chi_number=as.character(chi_number)) %>% 
+  mutate(chi_number = ifelse(nchar(chi_number) == 9, paste0("0", chi_number), chi_number))
+View(datafile$chi_number)
+count(datafile, substr(chi_number, 9, 9))
+#Change numeric to a string character for chi_number
 
 datafile  %>%
-  mutate(CHINo=as.character(CHINo))
+  mutate(chi_number=as.character(chi_number))
 
 ###. Change discharge reason from code to text
 
@@ -98,8 +84,8 @@ datafile <-  datafile %>%
 
 #Create dob2 in yyyymmdd format
 datafile<-datafile%>% 
-  mutate(dob2=as.numeric(paste0(str_sub(PatientDOB,7,10),str_sub(PatientDOB,4,5),
-                                str_sub(PatientDOB,1,2))))
+  mutate(dob2=as.numeric(paste0(str_sub(date_of_birth,7,10),str_sub(date_of_birth,4,5),
+                                str_sub(date_of_birth,1,2))))
 
 #Create rmddate as a string
 datafile<-datafile%>% 
@@ -123,7 +109,7 @@ table(datafile$AGEATRDD)
 datafile$Readyfordischargedate<-format(as.Date(datafile$Readyfordischargedate,"%d/%m/%Y"),"%Y/%m/%d")
 datafile$OriginalAdmissionDate<-format(as.Date(datafile$OriginalAdmissionDate,"%d/%m/%Y"),"%Y/%m/%d")
 datafile$DateDischarge<-format(as.Date(datafile$DateDischarge,"%d/%m/%Y"),"%Y/%m/%d")
-datafile$PatientDOB<-format(as.Date(datafile$PatientDOB,"%d/%m/%Y"),"%Y/%m/%d")
+datafile$date_of_birth<-format(as.Date(datafile$date_of_birth,"%d/%m/%Y"),"%Y/%m/%d")
 month_start<-format(as.Date(month_start,"%d/%m/%Y"),"%Y/%m/%d")
 month_end<-format(as.Date(month_end,"%d/%m/%Y"),"%Y/%m/%d")
 
@@ -150,25 +136,25 @@ table(datafile$AgeGrouping)
 
 
 datafile<-datafile %>% mutate(REASONGRP_HIGHLEVEL=
-                      if_else(REASONFORDELAY=="100","Code 100",
-                      if_else(REASONFORDELAY=="9","Code 9",
-                      if_else(REASONFORDELAY %in%c("11A","11B","23C","23D","24A","24B","24C","24D","24E","24F","27A","25A","25D","25E","25F","44"),"Health and Social Care Reasons",
-                      if_else(REASONFORDELAY%in%c("51","52","61","67","71","72","73","74"),"Patient/Carer/Family-related reasons","")))))
+                      if_else(dd_code_1=="100","Code 100",
+                      if_else(dd_code_1=="9","Code 9",
+                      if_else(dd_code_1 %in%c("11A","11B","23C","23D","24A","24B","24C","24D","24E","24F","27A","25A","25D","25E","25F","44"),"Health and Social Care Reasons",
+                      if_else(dd_code_1%in%c("51","52","61","67","71","72","73","74"),"Patient/Carer/Family-related reasons","")))))
 
 table(datafile$REASONGRP_HIGHLEVEL) # check no outliers that haven't been coded
 
 #High Level Reason Code Grouping
 datafile<-datafile%>% mutate(REASONGRP=
-        if_else(REASONFORDELAY%in%c("11A","11B"), "H&SC - Community Care Assessment",
-        if_else(REASONFORDELAY%in%c("23C","23D"), "H&SC - Funding",
-        if_else(REASONFORDELAY%in%c("24A","24B","24C","24D","24E","24F","27A")|REASONFORDELAYSECONDARY%in%c("24DX","24EX"), "H&SC - Place Availability",
-        if_else(REASONFORDELAY%in%c("25A","25D","25E","25F")|REASONFORDELAYSECONDARY%in%c("25X"), "H&SC - Care Arrangements",
-        if_else(REASONFORDELAY=="44","H&SC-Transport",
-        if_else(REASONFORDELAY%in%c("51","52"), "Patient/Carer/Family-related reasons:Legal/Financial",
-        if_else(REASONFORDELAY%in%c("61","67"),"Patient/Carer/Family-related reasons:Disagreements",
-        if_else(REASONFORDELAY%in%c("71","72","73","74"), "Patient/Carer/Family-related reasons:Other",
-        if_else(REASONFORDELAYSECONDARY%in%c("71X","25X","24EX","24DX"),"Other Code 9 reasons",
-        if_else(REASONFORDELAYSECONDARY=="51X","Adults with Incapacity Act"," ")))))))))))
+        if_else(dd_code_1%in%c("11A","11B"), "H&SC - Community Care Assessment",
+        if_else(dd_code_1%in%c("23C","23D"), "H&SC - Funding",
+        if_else(dd_code_1%in%c("24A","24B","24C","24D","24E","24F","27A")|dd_code_2%in%c("24DX","24EX"), "H&SC - Place Availability",
+        if_else(dd_code_1%in%c("25A","25D","25E","25F")|dd_code_2%in%c("25X"), "H&SC - Care Arrangements",
+        if_else(dd_code_1=="44","H&SC-Transport",
+        if_else(dd_code_1%in%c("51","52"), "Patient/Carer/Family-related reasons:Legal/Financial",
+        if_else(dd_code_1%in%c("61","67"),"Patient/Carer/Family-related reasons:Disagreements",
+        if_else(dd_code_1%in%c("71","72","73","74"), "Patient/Carer/Family-related reasons:Other",
+        if_else(dd_code_2%in%c("71X","25X","24EX","24DX"),"Other Code 9 reasons",
+        if_else(dd_code_2=="51X","Adults with Incapacity Act"," ")))))))))))
 
 #Check output
 table(datafile$REASONGRP) #cant check with tables yet as this is record total ( not just census)
@@ -176,38 +162,38 @@ table(datafile$REASONGRP) #cant check with tables yet as this is record total ( 
 
 
 datafile<-datafile%>% mutate(DELAY_DESCRIPTION=
-          if_else(REASONFORDELAY%in%c("11A","11B"), "Awaiting commencement of post-hospital social care assessment(including transfer to another area team). Social Care includes home care and social work OT",
-          if_else(REASONFORDELAY%in%c("23C"), "Non-availability of statutory funding to purchase Care Home place",
-          if_else(REASONFORDELAY%in%c("23D"), "Non-availability of statutory funding to purchase any Other Care Home Package", 
-          if_else(REASONFORDELAY%in%c("24A"), "Awaiting place availablity in Local Authority Residential Home",
-          if_else(REASONFORDELAY%in%c("24B"), "Awaiting place availablity in Independent Residential Home",
-          if_else(REASONFORDELAY%in%c("24A"), "Awaiting place availablity in Local Authority Residential Home",
-          if_else(REASONFORDELAY%in%c("24C"), "Awaiting place availability in Nursing Home",
-          if_else(REASONFORDELAY%in%c("24D"), "Awaiting place availability in Specialist Residential Facility for younger age groups(<65)",
-          if_else(REASONFORDELAY=="9"& REASONFORDELAYSECONDARY=="24DX", "Awaiting place availability in Specialist Facility for high level younger age groups (<65) where the Facility is not currently available and no interim option is appropriate",
-          if_else(REASONFORDELAY=="24E", "Awaiting place availability in Specialist Residential Facility for older age groups(65+)",
-          if_else(REASONFORDELAY=="9"& REASONFORDELAYSECONDARY=="24EX","Awaiting place availability in Specialist Residential Facility for older age groups(65+) where the Facility is not currently available and an interim option is not appropriate",
-          if_else(REASONFORDELAY=="24F", "Awaiting place availability in care home (EMI/Dementia bed required)",
-          if_else(REASONFORDELAY=="9"& REASONFORDELAYSECONDARY=="26X", "Care Home/Facility Closed",
-          if_else(REASONFORDELAY=="27A", "Awaiting place availability in an intermediate Care facility", 
-          if_else(REASONFORDELAY=="9"& REASONFORDELAYSECONDARY=="46X", "Ward Closed - patient well but cannot be discharged due to closure",
-          if_else(REASONFORDELAY=="25A", "Awaiting completion of arrangements for Care Home Placement",
-          if_else(REASONFORDELAY=="25D", "Awaiting completion of arrangements - in order to live in their own home - awaiting social support(non-availability of service",
-          if_else(REASONFORDELAY=="25E", "Awaiting completion of arrangements - in order to live in their own home - awaiting procurement/delivery of equipment/adaptations fitted",
-          if_else(REASONFORDELAY=="25F", "Awaiting completion of arraangements - Re-housing provision(including sheltered housing and homeless patients)",
-          if_else(REASONFORDELAY=="9"& REASONFORDELAYSECONDARY=="25X", "Awaiting completion of complex care arrangements - in order to live within their own home",
-          if_else(REASONFORDELAY=="51", "Legal issues (including intervention by patient's lawyer) - e.g. informed consent and / or adult protection issues",
-          if_else(REASONFORDELAY=="9"& REASONFORDELAYSECONDARY=="51X", "Adults with Incapacity Act",
-          if_else(REASONFORDELAY=="52", "Financial and personal assets problem - e.g. confirming financial assessment",
-          if_else(REASONFORDELAY=="61","Internal family dispute issues (including dispute between patient and carer)",
-          if_else(REASONFORDELAY=="67","Disagreement between patient/carer/family and health and social care",
-          if_else(REASONFORDELAY=="71","Patient exercising statutory right of choice",
-          if_else(REASONFORDELAY=="9"& REASONFORDELAYSECONDARY=="71X", "Patient exercising statutory right of choice - interim placement is not possible or reasonable",
-          if_else(REASONFORDELAY=="72","Patient does not qualify for care",
-          if_else(REASONFORDELAY=="73","Family/relatives arranging care",
-          if_else(REASONFORDELAY=="74","Other patient/carer/family-related reason",
-          if_else(REASONFORDELAY=="44","Awaiting availability of transport",
-          if_else(REASONFORDELAY=="100","Reprovisioning/Recommissioning(see data definitions manual section 2.3)"," ")))))))))))))))))))))))))))))))))
+          if_else(dd_code_1%in%c("11A","11B"), "Awaiting commencement of post-hospital social care assessment(including transfer to another area team). Social Care includes home care and social work OT",
+          if_else(dd_code_1%in%c("23C"), "Non-availability of statutory funding to purchase Care Home place",
+          if_else(dd_code_1%in%c("23D"), "Non-availability of statutory funding to purchase any Other Care Home Package", 
+          if_else(dd_code_1%in%c("24A"), "Awaiting place availablity in Local Authority Residential Home",
+          if_else(dd_code_1%in%c("24B"), "Awaiting place availablity in Independent Residential Home",
+          if_else(dd_code_1%in%c("24A"), "Awaiting place availablity in Local Authority Residential Home",
+          if_else(dd_code_1%in%c("24C"), "Awaiting place availability in Nursing Home",
+          if_else(dd_code_1%in%c("24D"), "Awaiting place availability in Specialist Residential Facility for younger age groups(<65)",
+          if_else(dd_code_1=="9"& dd_code_2=="24DX", "Awaiting place availability in Specialist Facility for high level younger age groups (<65) where the Facility is not currently available and no interim option is appropriate",
+          if_else(dd_code_1=="24E", "Awaiting place availability in Specialist Residential Facility for older age groups(65+)",
+          if_else(dd_code_1=="9"& dd_code_2=="24EX","Awaiting place availability in Specialist Residential Facility for older age groups(65+) where the Facility is not currently available and an interim option is not appropriate",
+          if_else(dd_code_1=="24F", "Awaiting place availability in care home (EMI/Dementia bed required)",
+          if_else(dd_code_1=="9"& dd_code_2=="26X", "Care Home/Facility Closed",
+          if_else(dd_code_1=="27A", "Awaiting place availability in an intermediate Care facility", 
+          if_else(dd_code_1=="9"& dd_code_2=="46X", "Ward Closed - patient well but cannot be discharged due to closure",
+          if_else(dd_code_1=="25A", "Awaiting completion of arrangements for Care Home Placement",
+          if_else(dd_code_1=="25D", "Awaiting completion of arrangements - in order to live in their own home - awaiting social support(non-availability of service",
+          if_else(dd_code_1=="25E", "Awaiting completion of arrangements - in order to live in their own home - awaiting procurement/delivery of equipment/adaptations fitted",
+          if_else(dd_code_1=="25F", "Awaiting completion of arraangements - Re-housing provision(including sheltered housing and homeless patients)",
+          if_else(dd_code_1=="9"& dd_code_2=="25X", "Awaiting completion of complex care arrangements - in order to live within their own home",
+          if_else(dd_code_1=="51", "Legal issues (including intervention by patient's lawyer) - e.g. informed consent and / or adult protection issues",
+          if_else(dd_code_1=="9"& dd_code_2=="51X", "Adults with Incapacity Act",
+          if_else(dd_code_1=="52", "Financial and personal assets problem - e.g. confirming financial assessment",
+          if_else(dd_code_1=="61","Internal family dispute issues (including dispute between patient and carer)",
+          if_else(dd_code_1=="67","Disagreement between patient/carer/family and health and social care",
+          if_else(dd_code_1=="71","Patient exercising statutory right of choice",
+          if_else(dd_code_1=="9"& dd_code_2=="71X", "Patient exercising statutory right of choice - interim placement is not possible or reasonable",
+          if_else(dd_code_1=="72","Patient does not qualify for care",
+          if_else(dd_code_1=="73","Family/relatives arranging care",
+          if_else(dd_code_1=="74","Other patient/carer/family-related reason",
+          if_else(dd_code_1=="44","Awaiting availability of transport",
+          if_else(dd_code_1=="100","Reprovisioning/Recommissioning(see data definitions manual section 2.3)"," ")))))))))))))))))))))))))))))))))
 
 table(datafile$DELAY_DESCRIPTION) #check
 
@@ -219,11 +205,11 @@ table(datafile$DELAY_DESCRIPTION) #check
 datafile<-datafile %>% mutate(Census_Date=census_date)
 
 datafile<-datafile %>% mutate(CENSUSFLAG=
-          if_else(is.na(DateDischarge) & Readyfordischargedate<Census_Date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",
-          if_else(DateDischarge>=Census_Date & Readyfordischargedate<census_date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y",
-          if_else(DateDischarge<=Census_Date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"",
-          if_else(DateDischarge==Readyfordischargedate & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in% c("26X","46X"),"",
-          if_else(DateDischarge>=Census_Date & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"",""))))))
+          if_else(is.na(DateDischarge) & Readyfordischargedate<Census_Date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"Y",
+          if_else(DateDischarge>=Census_Date & Readyfordischargedate<census_date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"Y",
+          if_else(DateDischarge<=Census_Date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"",
+          if_else(DateDischarge==Readyfordischargedate & dd_code_1!="100" & dd_code_2 %!in% c("26X","46X"),"",
+          if_else(DateDischarge>=Census_Date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"",""))))))
 
 table(datafile$CENSUSFLAG) # OK here 209 matches census output table publication
 #Flag those discharged up to 3 working days after census
@@ -235,7 +221,7 @@ datafile<-datafile%>% mutate(census_datePlus3WorkingDays=Census_Date+5)
 #Flag those with a dischargedate le census_datePlus3WorkingDays
 
 datafile<-datafile %>% mutate(Dischargewithin3daysCensus=
-                                if_else(CENSUSFLAG=="Y" & DateDischarge<=census_datePlus3WorkingDays & REASONFORDELAY!="100" & REASONFORDELAYSECONDARY %!in%c("26X","46X"),"Y"," "))
+                                if_else(CENSUSFLAG=="Y" & DateDischarge<=census_datePlus3WorkingDays & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"Y"," "))
 
 table (datafile$Dischargewithin3daysCensus)
 #change "Y" to a count for DischargeWithin3Days
@@ -295,14 +281,14 @@ table(datafile$OBDs_intheMonth)      # matches syntax output
 table(datafile$HealthLocationCode) # Checking wh
 datafile<-datafile %>% mutate(NoofPatients=1)
 table(datafile$NoofPatients) #525
-table(datafile$REASONFORDELAY)
+table(datafile$dd_code_1)
 #Create Query Flags
 
 
 #Create rmddate as a string
 datafile<-datafile%>% 
   mutate(query_CHI_DOB=
-           if_else(paste0(str_sub(PatientDOB,9,10),str_sub(PatientDOB,6,7),str_sub(PatientDOB,3,4))!=str_sub(CHINo,1,6),"Y"," "))
+           if_else(paste0(str_sub(date_of_birth,9,10),str_sub(date_of_birth,6,7),str_sub(date_of_birth,3,4))!=str_sub(chi_number,1,6),"Y"," "))
 
 table(datafile$query_CHI_DOB)
 
@@ -330,7 +316,7 @@ Specialtyfile<-read_sav(paste0("/conf/linkage/output/lookups/Unicode/National Re
 
 #check specialties are correct
 
-datafile<-datafile %>% dplyr::mutate(flag_spec=if_else(SpecialtyCode %in% Specialtyfile$speccode,1,0))
+datafile<-datafile %>% dplyr::mutate(flag_spec=if_else(discharge_specialty_nat_code %in% Specialtyfile$speccode,1,0))
 
 datafile<-datafile %>% mutate(query_SpecInvalid=
                                 if_else(flag_spec==0,"Y"," "))
@@ -365,52 +351,53 @@ datafile<-datafile %>%  mutate(query_DischReasInvalid=
 #Check for DiscontinuedCode
 
 datafile<-datafile %>%  mutate(query_DiscontinuedCode=
-                                 if_else(REASONFORDELAY%in%c("42","62","63"),"Y",
-                                 if_else(REASONFORDELAYSECONDARY=="42X","Y"," ")))
+                                 if_else(dd_code_1%in%c("42","62","63"),"Y",
+                                 if_else(dd_code_2=="42X","Y"," ")))
+
 
 #Check for missing 11A date referral codes ( existing 11A codes with no date of referral)
 
 datafile<-datafile %>%  mutate(query_MissingDateRefRec_11A=
-                                 if_else(REASONFORDELAY=="11A" & is.na(DateReferralReceived),"Y"," "))
-table(datafile$REASONFORDELAY) #check that codes haven't changed
-table(datafile$REASONFORDELAYSECONDARY) #check that codes haven't changed
+                                 if_else(dd_code_1=="11A" & is.na(DateReferralReceived),"Y"," "))
+table(datafile$dd_code_1) #check that codes haven't changed
+table(datafile$dd_code_2) #check that codes haven't changed
 
 #Set Blank Codes to 11A
 
-datafile<-datafile %>%  mutate(REASONFORDELAY=
-                                 if_else(is.na(REASONFORDELAY) & is.na(REASONFORDELAYSECONDARY),"11A",REASONFORDELAY))
-table(datafile$REASONFORDELAY) #check that codes haven't changed
-table(datafile$REASONFORDELAYSECONDARY) #check that codes haven't changed
+datafile<-datafile %>%  mutate(dd_code_1=
+                                 if_else(is.na(dd_code_1) & is.na(dd_code_2),"11A",dd_code_1))
+table(datafile$dd_code_1) #check that codes haven't changed
+table(datafile$dd_code_2) #check that codes haven't changed
 #Ensure Primary codes do not end in an 'X'
 
 datafile<-datafile %>%  mutate(query_Reas1endsX=
-                                 if_else(paste0(str_sub(REASONFORDELAY,3,3))=="X","Y"," "))
+                                 if_else(paste0(str_sub(dd_code_1,3,3))=="X","Y"," "))
 
 #If Reas1<>Code 9, ensure Reas2=blank 
 
 datafile<-datafile %>%  mutate(query_Reas2Invalid=
-                                 if_else(REASONFORDELAY!="9" & REASONFORDELAYSECONDARY!=" ","Y"," "))
+                                 if_else(dd_code_1!="9" & dd_code_2!=" ","Y"," "))
 
 #If Reas1=Code 9, Reas2 cannot be blank 
 
 datafile<-datafile %>%  mutate(query_Reas2Invalid=
-                                 if_else(REASONFORDELAY=="9" & REASONFORDELAYSECONDARY!=" ","Y"," "))
+                                 if_else(dd_code_1=="9" & dd_code_2!=" ","Y"," "))
 
 #If Reas1=Code 9, Reas2 must end with 'X'
 
 datafile<-datafile %>%  mutate(query_Reas2Invalid=
-                        if_else(REASONFORDELAY=="9" & str_ends(REASONFORDELAYSECONDARY,"X")=="FALSE","Y"," "))
+                        if_else(dd_code_1=="9" & str_ends(dd_code_2,"X")=="FALSE","Y"," "))
 
-table(datafile$REASONFORDELAY)
-table(datafile$REASONFORDELAYSECONDARY)
+table(datafile$dd_code_1)
+table(datafile$dd_code_2)
 #Flag Local Codes
 datafile<-datafile %>%  mutate(query_LocalCode=
                                  if_else(
-                                   !(REASONFORDELAY %in% c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
+                                   !(dd_code_1 %in% c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
                                                            "25A","25D","25E","25F","43","51","52","61","67","71","72","73",
                                                            "74","44"," ","9","09","41","100")) |
-                                     (!is.na(REASONFORDELAYSECONDARY) & 
-                                        !(REASONFORDELAYSECONDARY %in% c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
+                                     (!is.na(dd_code_2) & 
+                                        !(dd_code_2 %in% c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
                                                                          "25A","25D","25E","25F","43","51","52","61","67","71","72","73",
                                                                          "74","44"," ","9","09","41","100","24DX", "24EX","25X","51X","71X",
                                                                          "26X","46X"))),
@@ -423,28 +410,28 @@ datafile<-datafile %>%  mutate(query_location=
                                  if_else(HealthLocationCode==" ","Y"," "))
 
 datafile<-datafile %>%  mutate(query_CHI=
-                                 if_else(is.na(CHINo),"Y"," "))
+                                 if_else(is.na(chi_number),"Y"," "))
 
 datafile<-datafile %>%  mutate(query_LA=
-                                 if_else(LocalAuthorityArea%in%c("Missing"," "),"Y"," "))
+                                 if_else(local_authority_code%in%c("Missing"," "),"Y"," "))
 
 datafile<-datafile %>%  mutate(query_PCode=
                                  if_else(PatientPostcode==" ","Y"," "))
 
 datafile<-datafile %>%  mutate(query_DOB=
-                                 if_else(PatientDOB==" ","Y"," "))
+                                 if_else(date_of_birth==" ","Y"," "))
 
-datafile<-datafile %>%  mutate(query_Gender=
-                                 if_else(Gender==" ","Y"," "))
+datafile<-datafile %>%  mutate(query_sex_code=
+                                 if_else(sex_code==" ","Y"," "))
 
 datafile<-datafile %>%  mutate(query_Spec=
-                                 if_else(SpecialtyCode==" ","Y"," "))
+                                 if_else(discharge_specialty_nat_code==" ","Y"," "))
 
 datafile<-datafile %>%  mutate(query_RDD=
                                  if_else(is.na(Readyfordischargedate),"Y"," "))
 
 datafile<-datafile %>%  mutate(query_Reas1=
-                                 if_else(is.na(REASONFORDELAY),"Y"," "))
+                                 if_else(is.na(dd_code_1),"Y"," "))
 
 datafile<-datafile %>%  mutate(query_AdmDate=
                                  if_else(is.na(OriginalAdmissionDate),"Y"," "))
@@ -466,9 +453,9 @@ datafile<-datafile %>%  mutate(query_DischDateltAdmDate=
 datafile<-datafile %>%  mutate(query_OBDle0=
                                  if_else(CENSUSFLAG=="Y" & OBDs_intheMonth<=0,"Y"," "))
 
-# check for duplicate CHINo and flag
+# check for duplicate chi_number and flag
 
-datafile<-datafile %>% tidylog::group_by(CHINo) %>%
+datafile<-datafile %>% tidylog::group_by(chi_number) %>%
   tidylog::mutate(
     #DuplicateCHI = dplyr::row_number(),
                   DuplicateCHI = if_else(max(dplyr::row_number())>1,"Y"," ")) %>%
@@ -479,12 +466,12 @@ table(datafile$DuplicateCHI)
 # matches output from spss ( 17 duplicate chi records, 16 with two and one with 3)
 
 # check for duplicate census records and flag
-datafile<-arrange(datafile,CHINo,desc(CENSUSFLAG))
+datafile<-arrange(datafile,chi_number,desc(CENSUSFLAG))
 
 
 # check for duplicate CENSUS RECORDS and flag
 
-datafile<-datafile %>% tidylog::group_by(CHINo,CENSUSFLAG) %>%
+datafile<-datafile %>% tidylog::group_by(chi_number,CENSUSFLAG) %>%
   tidylog::mutate(query_DuplicateCHI_Census = max(row_number())>1 & CENSUSFLAG=="Y") %>%
   #query_DuplicateCHI_Census == if_else(max(row_number())>1 & CENSUSFLAG="Y"),"Y"," ") %>%
   dplyr::ungroup()
@@ -493,42 +480,52 @@ table(datafile$query_DuplicateCHI_Census)
 
 
 # need to capture paired records with errors to investigate reason for duplicate - so update Error code for both.
-datafile<-arrange(datafile,CHINo,desc(query_DuplicateCHI_Census))
+datafile<-arrange(datafile,chi_number,desc(query_DuplicateCHI_Census))
 
-datafile<-datafile %>% tidylog::group_by(CHINo,query_DuplicateCHI_Census) %>%
+datafile<-datafile %>% tidylog::group_by(chi_number,query_DuplicateCHI_Census) %>%
   tidylog::mutate(query_DuplicateCHI_Census = max(row_number())>1 & CENSUSFLAG=="Y") %>%
   #query_DuplicateCHI_Census == if_else(max(row_number())>1 & CENSUSFLAG="Y"),"Y"," ") %>%
   dplyr::ungroup()
 
 table(datafile$query_DuplicateCHI_Census)
 #Where CHI number and Admission Date match - check same RDD date on multiple records?
-datafile<-arrange(datafile,CHINo,OriginalAdmissionDate,Readyfordischargedate,DateDischarge)
+datafile<-arrange(datafile,chi_number,OriginalAdmissionDate,Readyfordischargedate,DateDischarge)
 
-datafile<-datafile %>% tidylog::group_by(CHINo,OriginalAdmissionDate,Readyfordischargedate) %>%
+datafile<-datafile %>% tidylog::group_by(chi_number,OriginalAdmissionDate,Readyfordischargedate) %>%
   tidylog::mutate(query_OverlappingDates = if_else(max(row_number())>1,"Y"," ")) %>%
   dplyr::ungroup()
 
 table(datafile$query_OverlappingDates)
 
+#Where CHI number and Admission Date match - check same Death date on multiple records?
+datafile<-arrange(datafile,chi_number,OriginalAdmissionDate,Readyfordischargedate,DateDischarge)
+
+datafile<-datafile %>% tidylog::group_by(chi_number,OriginalAdmissionDate,Readyfordischargedate) %>%
+  tidylog::mutate(query_OverlappingDates = if_else(chi_number==lag(chi_number) & OriginalAdmissionDate==lag(OriginalAdmissionDate) & 
+                                                     Readyfordischargedate==lag(Readyfordischargedate) & DateDischarge!=lag(DateDischarge) & DischargeReason==lag(DischargeReason),"Y"," ")) %>%
+  dplyr::ungroup()
+
+
+
 #RDD before Discharge Date on previous record.
-#if CHNO=lagCHINO and OriginalAdmissionDate=lagOriginalADmissionDate and REadyfordischargedate<lagReadyfordischargedate and missing lagDateDischarge
-datafile<-datafile %>% tidylog::group_by(CHINo,OriginalAdmissionDate,Readyfordischargedate) %>%
+#if CHNO=lagchi_number and OriginalAdmissionDate=lagOriginalADmissionDate and REadyfordischargedate<lagReadyfordischargedate and missing lagDateDischarge
+datafile<-datafile %>% tidylog::group_by(chi_number,OriginalAdmissionDate,Readyfordischargedate) %>%
   tidylog::mutate(query_OverlappingDates = if_else(max(row_number())>1 & Readyfordischargedate<lag(Readyfordischargedate), "Y"," ")) %>%
   dplyr::ungroup()
 
 table(datafile$query_OverlappingDates)
 
 #Different RDDs but previous record missing a DateDischarge.
-datafile<-datafile %>% tidylog::group_by(CHINo,OriginalAdmissionDate,Readyfordischargedate) %>%
-  tidylog::mutate(query_OverlappingDates = if_else(CHINo==lag(CHINo) & OriginalAdmissionDate==lag(OriginalAdmissionDate) & 
+datafile<-datafile %>% tidylog::group_by(chi_number,OriginalAdmissionDate,Readyfordischargedate) %>%
+  tidylog::mutate(query_OverlappingDates = if_else(chi_number==lag(chi_number) & OriginalAdmissionDate==lag(OriginalAdmissionDate) & 
                                                      Readyfordischargedate==lag(Readyfordischargedate) & DateDischarge!=lag(DateDischarge),"Y"," ")) %>%
   dplyr::ungroup()
 
 table(datafile$query_OverlappingDates)
 
 #Different admission and ready for discharge dates where RDD on second record before RDD on first record
-datafile<-datafile %>% tidylog::group_by(CHINo,DateDischarge,Readyfordischargedate) %>%
-  tidylog::mutate(query_OverlappingDates = if_else(CHINo==lag(CHINo) & Readyfordischargedate<lag(Readyfordischargedate) 
+datafile<-datafile %>% tidylog::group_by(chi_number,DateDischarge,Readyfordischargedate) %>%
+  tidylog::mutate(query_OverlappingDates = if_else(chi_number==lag(chi_number) & Readyfordischargedate<lag(Readyfordischargedate) 
                                                    | DateDischarge<lag(Readyfordischargedate) | Readyfordischargedate<lag(DateDischarge),"Y"," ")) %>%
   dplyr::ungroup()
 
@@ -536,18 +533,18 @@ table(datafile$query_OverlappingDates)
 
 #Need to capture paired records with errors to investigate reason for duplicate - so update Error code for both.
 
-datafile<-arrange(datafile,CHINo,desc(query_OverlappingDates))
+datafile<-arrange(datafile,chi_number,desc(query_OverlappingDates))
 
 
-datafile<-datafile %>% tidylog::group_by(CHINo) %>%
-  tidylog::mutate(query_OverlappingDates = if_else(CHINo==lag(CHINo),lag(query_OverlappingDates)," ")) %>%
+datafile<-datafile %>% tidylog::group_by(chi_number) %>%
+  tidylog::mutate(query_OverlappingDates = if_else(chi_number==lag(chi_number),lag(query_OverlappingDates)," ")) %>%
   dplyr::ungroup()
 
 table(datafile$query_OverlappingDates)
 
-#sort cases by CHINo OriginalAdmissionDate ReadyforDischargeDate DateDischarge
+#sort cases by chi_number OriginalAdmissionDate ReadyforDischargeDate DateDischarge
 
-datafile<-arrange(datafile,CHINo,OriginalAdmissionDate,Readyfordischargedate,DateDischarge)
+datafile<-arrange(datafile,chi_number,OriginalAdmissionDate,Readyfordischargedate,DateDischarge)
 
 #compute Noofpatients=1
 datafile$NoofPatients==1
@@ -565,7 +562,7 @@ table(datafile$CENSUSFLAG)
 
 datafile<-datafile %>% mutate(query=
                     if_else(query_Month=="Y"|query_location=="Y"| query_CHI=="Y"|query_LA=="Y"
-                            | query_PCode=="Y"| query_PCodeInvalid=="Y"|query_Gender=="Y"| query_Spec=="Y"
+                            | query_PCode=="Y"| query_PCodeInvalid=="Y"|query_sex_code=="Y"| query_Spec=="Y"
                             | query_SpecInvalid=="Y"| query_RDD=="Y"|query_Reas1=="Y"| query_AdmDate=="Y"| query_CHI_DOB=="Y"
                             | query_LocalCode=="Y"| query_DiscontinuedCode=="Y"| query_Reas1endsX=="Y"| query_Reas2Invalid=="Y"
                             | query_RDDltAdmDate=="Y"| query_DischDateltRDD=="Y"| query_DischDateltAdmDate=="Y"|query_MissingDischReas=="Y"| query_MissingDischDate=="Y"
@@ -579,7 +576,7 @@ table(datafile$query_CHI) # None
 table(datafile$query_LA) # None
 table(datafile$query_PCode) # None
 table(datafile$query_PCodeInvalid) # None
-table(datafile$query_Gender) # None
+table(datafile$query_sex_code) # None
 table(datafile$query_Spec) # None
 table(datafile$query_SpecInvalid) # None
 table(datafile$query_RDD) #None
@@ -607,20 +604,20 @@ query_list<-datafile %>% filter(datafile$query=="Y")
 
 #Note: No query_HospInBoard, query_DoB or query_Reas2noCode9 queries generated previously so ignored in next command.
 
-query_list2 = subset(query_list, select = c(Monthflag, Census_Date, Healthboard, HealthLocationCode, LocalAuthorityArea,
-                                            PatientPostcode, DuplicateCHI, CHINo, PatientDOB, SpecialtyCode, CENSUSFLAG,
+query_list2 = subset(query_list, select = c(Monthflag, Census_Date, nhs_board, HealthLocationCode, local_authority_code,
+                                            PatientPostcode, DuplicateCHI, chi_number, date_of_birth, discharge_specialty_nat_code, CENSUSFLAG,
                                             OriginalAdmissionDate, DateReferralReceived, Readyfordischargedate, DateDischarge,
-                                            DischargeReason, REASONFORDELAY, REASONFORDELAYSECONDARY, Outofareacaseindicator, 
+                                            DischargeReason, dd_code_1, dd_code_2, Outofareacaseindicator, 
                                             query_Month, query_location, query_CHI, query_LA, query_PCode, 
-                                            query_PCodeInvalid, query_Gender, query_Spec, query_SpecInvalid, 
+                                            query_PCodeInvalid, query_sex_code, query_Spec, query_SpecInvalid, 
                                             query_RDD, query_Reas1, query_AdmDate, query_CHI_DOB, query_LocalCode, 
                                             query_DiscontinuedCode, query_Reas1endsX, query_Reas2Invalid, 
                                             query_RDDltAdmDate, query_DischDateltRDD, query_DischDateltAdmDate, query_MissingDischReas, 
                                             query_MissingDischDate, query_DischReasInvalid, query_OverlappingDates, query_DuplicateCHI_Census, 
                                             query_OBDle0, query_MissingDateRefRec_11A, NoofPatients) )
 
-write_sav(query_list2,paste0(filepath,Healthboard,"_Query_List.sav"))
-write.xlsx(query_list2,paste0(filepath,Healthboard,"_Query_List.xlsx"))
+write_sav(query_list2,paste0(filepath,nhs_board,"_Query_List.sav"))
+write.xlsx(query_list2,paste0(filepath,nhs_board,"_Query_List.xlsx"))
 # isn't saving out a blank file as no errors!
 # If no Query_List.xlsx shows up this means there are no queries.
 
@@ -645,14 +642,14 @@ typeof(datafile$query_Reas1)
 #aggregate file
 table(datafile$query_Reas1)
 datafile2 <- datafile %>% 
-  group_by(Healthboard, Monthflag) %>% 
+  group_by(nhs_board, Monthflag) %>% 
   summarise(query_Month = sum(as.numeric(query_Month)),
             query_location=sum(as.numeric(query_location)),
             query_CHI=sum(as.numeric(query_CHI)),
             query_LA=sum(as.numeric(query_LA)),
             query_PCode=sum(as.numeric(query_PCode)),
             query_PCodeInvalid=sum(as.numeric(query_PCodeInvalid)),
-            query_Gender=sum(as.numeric(query_Gender)),
+            query_sex_code=sum(as.numeric(query_sex_code)),
             query_Spec=sum(as.numeric(query_Spec)),
             query_SpecInvalid=sum(as.numeric(query_SpecInvalid)),
             query_RDD=sum(as.numeric(query_RDD)),
@@ -696,17 +693,17 @@ datafile<-read_sav(paste0(filepath,"glasgow_temp.sav"))
 
 #Create a provsional HB census total - excl. Code 100.
 
-datafile3<-datafile %>% filter(REASONFORDELAY!="100" & (CENSUSFLAG=="Y" | Dischargewithin3daysCensus==1))
+datafile3<-datafile %>% filter(dd_code_1!="100" & (CENSUSFLAG=="Y" | Dischargewithin3daysCensus==1))
 
 Census_hb <- datafile3 %>% 
-  group_by(Healthboard, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
+  group_by(nhs_board, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
   summarise(census=n()) %>% 
   ungroup()
  
 #Create a Provisional HB/LA census total - excl Code 100.
 
 Census_la<- datafile3 %>% 
-  group_by(Healthboard, LocalAuthorityArea, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
+  group_by(nhs_board, local_authority_code, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
   summarise(census=n()) %>% 
   ungroup()
 
@@ -715,15 +712,15 @@ Census_la<- datafile3 %>%
 datafile$OBDs_intheMonth[is.na(datafile$OBDs_intheMonth)] <- 0 # Need to change NA to 0 before aggregate
 
 
-OBDs_HB<-datafile %>% filter(REASONFORDELAY!="100") %>% 
-  group_by(Healthboard, REASONGRP_HIGHLEVEL) %>% 
+OBDs_HB<-datafile %>% filter(dd_code_1!="100") %>% 
+  group_by(nhs_board, REASONGRP_HIGHLEVEL) %>% 
   summarise(OBDs_intheMonth=sum(OBDs_intheMonth)) %>% 
   ungroup()
 
 #Create a provisional HB OBD total - excl. code 100.
 
-OBDs_LA<-datafile %>% filter(REASONFORDELAY!="100") %>% 
-  group_by(Healthboard, LocalAuthorityArea, REASONGRP_HIGHLEVEL) %>% 
+OBDs_LA<-datafile %>% filter(dd_code_1!="100") %>% 
+  group_by(nhs_board, local_authority_code, REASONGRP_HIGHLEVEL) %>% 
   summarise(OBDs_intheMonth=sum(OBDs_intheMonth)) %>% 
   ungroup()
 
@@ -760,7 +757,7 @@ Prov <- Prov %>%
 #aggregate 
 
 ProvCensusOBD<-Prov%>% 
-  group_by(Healthboard, LocalAuthorityArea, DelayCategory) %>% 
+  group_by(nhs_board, local_authority_code, DelayCategory) %>% 
   summarise(Dischargewithin3daysCensus=sum(Dischargewithin3daysCensus),
             CensusTotal=sum(CensusTotal),
             OBDs_intheMonth=sum(OBDs_intheMonth,na.rm = TRUE)) %>% 
