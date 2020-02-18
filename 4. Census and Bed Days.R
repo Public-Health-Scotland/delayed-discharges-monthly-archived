@@ -39,7 +39,7 @@ monthflagflag<-("Jul 2019")
 ### 2.Get Scotland_validated file for latest monthflag ----
 
 datafile<-read.csv(paste0(filepath,"2019-07-25_SCOTLAND_validated.csv"))
-
+#sum(datafile$obds_in_month) total should be 47623 for July 2019.
 
 #strip out code 100s
 
@@ -53,7 +53,7 @@ datafile<-datafile %>% mutate(year="2019-20")
 
 #Create age_grpgGrouping
 
-datafile<-datafile%>% mutate(age_grp2<-
+datafile<-datafile%>% mutate(age_grp=
                                if_else(age_at_rdd<75, "18-74",
                                        if_else(age_at_rdd>=75, "75+", " ")))
 
@@ -101,7 +101,7 @@ write_sav(datafile3,paste0(filepath,"main census file Tabs 1 3 6.sav")) # save o
 datafile4<-datafile3
 datafile4$level<-"1"
 
-datafile4<-datafile4 %>% mutate(areaname=="Scotland")
+datafile4$areaname<-"Scotland"
 
 Scotlandbymainreasongrouping <- datafile4 %>% 
   group_by(year,monthflag,level,areaname,age_grp,reason_grp_high_level) %>% 
@@ -136,7 +136,7 @@ Scotlandbysubreasongrouping <- datafile4 %>%
 
 
 
-#Breakdown for las (Level=3)
+
 write_sav(Scotlandbysubreasongrouping,paste0(filepath,"Scotland by sub reason grouping.sav")) # save out file
 
 #Breakdown for HBs (Level=2)
@@ -176,7 +176,7 @@ HBbysubreasongrouping <- datafile4 %>%
 write_sav(HBbysubreasongrouping,paste0(filepath,"HB by sub reason grouping.sav")) # save out file
 
 datafile4$level<-"3"
-datafile4<-datafile4 %>% mutate(areaname=la)
+datafile4<-datafile4 %>% mutate(areaname=local_authority_code)
 
 
 labymainreasongrouping <- datafile4 %>% 
@@ -265,7 +265,7 @@ ScotHBlaallreasonsincHSCPatFamtotal<- datafile7 %>%
             gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
   ungroup()
 
-write_sav(ScotHBlaallreasonincHSCPatFamtotal,paste0(filepath,"ScotHBla all reasons inc HSC PatFam total.sav")) # save out file
+write_sav(ScotHBlaallreasonsincHSCPatFamtotal,paste0(filepath,"ScotHBla all reasons inc HSC PatFam total.sav")) # save out file
 
 
 #calculate the number of delays for all reasons
@@ -295,7 +295,7 @@ Tabs136<-
 arrange(Tabs136,areaname,age_grp,reason_grp_high_level) # arrange data in order for tables
 
 
-write_sav(Tab136,paste0(filepath,"Tabs 1 3 6_R.sav"))
+write_sav(Tabs136,paste0(filepath,"Tabs 1 3 6_R.sav"))
 
 #Tab 4 data - Mean and Media Length of delay
 ## datafile2 is the main census file
@@ -374,13 +374,16 @@ Scotlandindreasons<- datafile5 %>%
 #match all Scotland reasons and high level reason groupings back to main file and then add on individual reason breakdown
 
 
-datafile6 <- right_join(Tabs136,Scotlandhighlevelgrouping,
+#dataset6test <- rbind(Scotlandhighlevelgrouping, Tabs136, c(year, monthflag, level, areaname, age_grp, reason_grp_high_level))
+
+
+datafile6 <- full_join(Tabs136,Scotlandhighlevelgrouping,
                          by = c(("year" = "year"), ("monthflag"="monthflag"),("level"="level"),("areaname"="areaname"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
-datafile6a <- right_join(datafile6,Scotlandallreasons,
+datafile6a <- full_join(datafile6,Scotlandallreasons,
                         by = c(("year" = "year"), ("monthflag"="monthflag"),("level"="level"),("areaname"="areaname"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
-datafile6b <- right_join(datafile6a,Scotlandsublevelgroupings,
+datafile6b <- full_join(datafile6a,Scotlandsublevelgroupings,
                          by = c(("year" = "year"), ("monthflag"="monthflag"),("level"="level"),("areaname"="areaname"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
 
@@ -393,10 +396,10 @@ datafile7<- bind_cols(datafile6b,Scotlandindreasons)
 #exclude data that is at too low a level for publication
 
 #a
-datafile7<-datafile7 %>% mutate(delay_1_to_3_days,
+datafile7<-datafile7 %>% mutate(delay_1_to_3_days==
                       if_else(age_grp!="All" & 
                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_1_to_3_days)))
+                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons"),0,delay_1_to_3_days))
 
 
 datafile7<-datafile7 %>% mutate(delay_3_to_14_days,
@@ -544,9 +547,9 @@ datafile7<-datafile7 %>% mutate(notgpled,
 
 
 
-write_sav(paste0,filepath,"All census data.sav")
+write_sav(datafile7,paste0(filepath,"All census data.sav"))
 
-write.xlsx(paste0,filepath,"All census data.xlsx")
+write.xlsx(datafile7,paste0(filepath,"All census data.xlsx"))
 
 
 
@@ -569,15 +572,15 @@ datafile11<-datafile11 %>% mutate(nhs_board=substring(nhs_board, 5)) # change nh
 
 hbbeddaysdiffage_grp<- datafile11 %>% 
   group_by(nhs_board,age_grp,reason_grp_high_level) %>% 
-  summarise(OBDs_inthemonthflag=sum(OBDs_inthemonthflag,na.rm=TRUE)) %>% 
+  summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
 
 write_sav(hbbeddaysdiffage_grp,paste0(filepath,"hb bed days diff age_grp_R.sav")) # save out file
 
 labeddaysdiffage_grp<- datafile11 %>% 
-  group_by(la,age_grp,reason_grp_high_level) %>% 
-  summarise(OBDs_inthemonthflag=sum(OBDs_inthemonthflag,na.rm=TRUE)) %>% 
+  group_by(local_authority_code,age_grp,reason_grp_high_level) %>% 
+  summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
 
@@ -587,7 +590,7 @@ datafile12<-datafile11 %>% mutate(nhs_board="Scotland")
 
 Scotbeddaysdiffage_grp<- datafile12 %>% 
   group_by(nhs_board,age_grp,reason_grp_high_level) %>% 
-  summarise(OBDs_inthemonthflag=sum(OBDs_inthemonthflag,na.rm=TRUE)) %>% 
+  summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
 
@@ -604,7 +607,7 @@ datafile13<-datafile13 %>% mutate(age_grp="All")
 
 Scotlandhbbeddays<- datafile13 %>% 
   group_by(nhs_board,age_grp,reason_grp_high_level) %>% 
-  summarise(OBDs_inthemonthflag=sum(OBDs_inthemonthflag,na.rm=TRUE)) %>% 
+  summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
 #add files
@@ -616,7 +619,7 @@ datafile15<-datafile14 %>% mutate(reason_grp_high_level="All")
 
 ScotlandhbAllage_grpsbeddays<- datafile15 %>% 
   group_by(nhs_board,age_grp,reason_grp_high_level) %>% 
-  summarise(OBDs_inthemonthflag=sum(OBDs_inthemonthflag,na.rm=TRUE)) %>% 
+  summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
 datafile16<-rbind(ScotlandhbAllage_grpsbeddays,datafile14)
@@ -628,8 +631,8 @@ write_sav(datafile16,paste0(filepath,"Scot and hb bed days all age_grps all reas
 datafile17<-labeddaysdiffage_grp %>% mutate(age_grp="All")
 
 labeddaysallage_grps<- datafile17 %>% 
-  group_by(la,age_grp,reason_grp_high_level) %>% 
-  summarise(OBDs_inthemonthflag=sum(OBDs_inthemonthflag,na.rm=TRUE)) %>% 
+  group_by(local_authority_code,age_grp,reason_grp_high_level) %>% 
+  summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
 datafile18<-rbind(labeddaysallage_grps,labeddaysdiffage_grp)
@@ -639,17 +642,24 @@ write_sav(datafile18,paste0(filepath,"la bed days.sav")) # save out file
 datafile19<-datafile18 %>% mutate(reason_grp_high_level="All")
 
 labeddaysallreason_grp_high_level<- datafile19 %>% 
-  group_by(la,age_grp,reason_grp_high_level) %>% 
-  summarise(OBDs_inthemonthflag=sum(OBDs_inthemonthflag,na.rm=TRUE)) %>% 
+  group_by(local_authority_code,age_grp,reason_grp_high_level) %>% 
+  summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
 datafile20<-rbind(labeddaysallreason_grp_high_level,datafile18)
 
 write_sav(datafile20,paste0(filepath,"la bed days all age_grps all reasons.sav")) # save out file
 
-#match in to HB data sheet format
+#match in to HB data sheet template
 
 bhbbedstepmplate<-read_spss(paste0(filepath,"hb bed days template.sav"))
+#amend variable names in template to match the dta files
+
+bhbbedstepmplate <- bhbbedstepmplate %>% 
+  rename(nhs_board = hbname,
+         age_grp = age,
+         reason_grp_high_level = reas1)
+         
 
 #amend variables as necessary in order for matchi_numberng to work
 
@@ -663,6 +673,7 @@ datafile21<-datafile21%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(ag
 
 #Add in total for Standard filter on any row that isn't all
 datafile22a<-filter(datafile21,reason_grp_high_level!="ALL") 
+#Rename reason_grp_high_level as Standard where there isn't a Code 9
 datafile22<-datafile22a%>% mutate(reason_grp_high_level=
                                     if_else(reason_grp_high_level%in%c("HEALTH AND SOCIAL CARE REASONS","PATIENT/CARER/FAMILY-RElaTED REASONS"),"STANDARD","CODE 9"))
 table(datafile22$reason_grp_high_level)
@@ -673,10 +684,10 @@ datafile23<-filter(datafile22,reason_grp_high_level=="STANDARD")
 
 datafile24<- datafile23 %>% 
   group_by(nhs_board,age_grp,reason_grp_high_level) %>% 
-  summarise(OBDs_inthemonthflag=sum(OBDs_inthemonthflag,na.rm=TRUE)) %>% 
+  summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
-#datafile24<-datafile24%>%rename(OBDs2=OBDs_inthemonthflag)
+#datafile24<-datafile24%>%rename(OBDs2=obds_in_month)
 
 datafile25<- bind_rows(datafile24, datafile21)
 datafile25<-datafile25%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
@@ -684,75 +695,89 @@ datafile25<-datafile25%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(ag
 
 arrange(datafile25,nhs_board,age_grp,reason_grp_high_level) # issue here is that the rows with zeros don't appear so have to match to output file
 
-datafile26<-read.csv(paste0(filepath2,"hb_template.csv"))
-datafile26<-datafile26%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
+#datafile26<-read.csv(paste0(filepath2,"hb_template.csv"))
+bhbbedstepmplate<-bhbbedstepmplate%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
 
 #match files
 
 
-datafile27 <- right_join(datafile25, datafile26,
+datafile27 <- right_join(datafile25, bhbbedstepmplate,
                         by = c(("nhs_board" = "nhs_board"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
 #recode any NA as 0
-datafile27$OBDs_inthemonthflag[is.na(datafile27$OBDs_inthemonthflag)] <- 0
+datafile27$obds_in_month[is.na(datafile27$obds_in_month)] <- 0
 
-HB_OBD<-select(datafile27,-obds2)
+#HB_OBD<-select(datafile27,-obds2)
 
-write.xlsx(HB_OBD,paste0(filepath,"HB bed days data sheet_R.xlsx"))
+write.xlsx(datafile27,paste0(filepath,"HB bed days data sheet_R.xlsx"))
 
 
-#la bed days
+#la bed days - get la bed days template
 
 labedstemplate<-read.csv(paste0(filepath2,"la_template.csv"))
 
-labedstemplate<-labedstemplate%>% mutate(la=toupper(la),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
-datafile20<-datafile20%>% mutate(la=toupper(la),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
+labedstemplate <- labedstemplate %>% 
+  rename(local_authority_code = LA,
+         age_grp = age,
+         reason_grp_high_level = reas1)
 
+labedstemplate<-labedstemplate%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
+datafile20<-datafile20%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
 
+##################################################################
 
-#match with la bed days file
+#amend variables as necessary in order for matchi_numberng to work
 
-la_OBD <- merge(datafile20,labedstemplate,all=TRUE) %>% 
-                        mutate(OBDs_inthemonthflag=ifelse(is.na(OBDs_inthemonthflag),obds2,
-                           OBDs_inthemonthflag)) %>% 
-                             select(-obds2)
+datafile31 <- left_join(datafile20,labedstemplate,
+                        by = c(("local_authority_code" = "local_authority_code"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
-write.xlsx(la_OBD,paste0(filepath,"la bed days all age_grps all reasons_R.xlsx"))
+arrange(datafile31,local_authority_code,age_grp,reason_grp_high_level) # arrange data in order for tables
 
-##la file has no standard totals - needs created using adapted script below ( HB )
+write_sav(datafile31,paste0(filepath,"la bed days data sheet minus standard.sav")) # save out file
+datafile31<-datafile31%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
+
+#Add in total for Standard filter on any row that isn't all
+datafile32a<-filter(datafile31,reason_grp_high_level!="ALL") 
+#Rename reason_grp_high_level as Standard where there isn't a Code 9
+datafile32<-datafile32a%>% mutate(reason_grp_high_level=
+                                    if_else(reason_grp_high_level%in%c("HEALTH AND SOCIAL CARE REASONS","PATIENT/CARER/FAMILY-RElaTED REASONS"),"STANDARD","CODE 9"))
+table(datafile22$reason_grp_high_level)
 
 #select standard only.
-datafile23<-filter(datafile22,reason_grp_high_level=="STANDARD")
+datafile33<-filter(datafile32,reason_grp_high_level=="STANDARD")
 # aggregate 
 
-datafile24<- datafile23 %>% 
-  group_by(nhs_board,age_grp,reason_grp_high_level) %>% 
-  summarise(OBDs_inthemonthflag=sum(OBDs_inthemonthflag,na.rm=TRUE)) %>% 
+datafile34<- datafile33 %>% 
+  group_by(local_authority_code,age_grp,reason_grp_high_level) %>% 
+  summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
-#datafile24<-datafile24%>%rename(OBDs2=OBDs_inthemonthflag)
+#datafile24<-datafile24%>%rename(OBDs2=obds_in_month)
 
-datafile25<- bind_rows(datafile24, datafile21)
-datafile25<-datafile25%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
+datafile35<- bind_rows(datafile34, datafile31)
+datafile35<-datafile25%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
 
 
-arrange(datafile25,nhs_board,age_grp,reason_grp_high_level) # issue here is that the rows with zeros don't appear so have to match to output file
+arrange(datafile35,local_authority_code,age_grp,reason_grp_high_level) # issue here is that the rows with zeros don't appear so have to match to output file
 
-datafile26<-read.csv(paste0(filepath2,"hb_template.csv"))
-datafile26<-datafile26%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
+#datafile26<-read.csv(paste0(filepath2,"hb_template.csv"))
+#bhbbedstepmplate<-bhbbedstepmplate%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
 
 #match files
 
 
-datafile27 <- right_join(datafile25, datafile26,
-                         by = c(("nhs_board" = "nhs_board"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
+datafile37 <- right_join(datafile35, labedstemplate,
+                         by = c(("local_authority_code" = "local_authority_code"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
 #recode any NA as 0
-datafile27$OBDs_inthemonthflag[is.na(datafile27$OBDs_inthemonthflag)] <- 0
+datafile37$obds_in_month[is.na(datafile37$obds_in_month)] <- 0
 
-HB_OBD<-select(datafile27,-obds2)
+#
 
-write.xlsx(HB_OBD,paste0(filepath,"HB bed days data sheet_R.xlsx"))
+write.xlsx(datafile37,paste0(filepath,"LA bed days data sheet_R.xlsx"))
+
+
+
 
 
 ### END OF SCRIPT ###
