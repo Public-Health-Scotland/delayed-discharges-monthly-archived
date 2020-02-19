@@ -393,13 +393,13 @@ datafile <- datafile %>%
                "days"),
            drmd_in_month == "N" & date_discharge_in_month == "Y" ~
              lubridate::time_length(lubridate::interval(first_dom, 
-                                                      discharge_date), "days"), # + days(1),
+                                                      discharge_date), "days") + 1,
            drmd_in_month == "Y" & date_discharge_in_month == "N" ~
              lubridate::time_length(
                lubridate::interval(date_declared_medically_fit, last_dom), 
-               "days"), # + days(1)
+               "days"),
            drmd_in_month == "N" & date_discharge_in_month == "N" ~ 
-             lubridate::time_length(lubridate::interval(first_dom, last_dom), "days")
+             lubridate::time_length(lubridate::interval(first_dom, last_dom), "days") + 1
            ),
          
          # LENGTH OF DELAY AT CENSUS POINT.
@@ -485,7 +485,7 @@ datafile <- datafile %>%
     mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & 
                                                   census_flag == "Y", 
                   lag(error_Duplicate_CHI_Census), error_Duplicate_CHI_Census)) %>%
-  dplyr::ungroup() %>%
+  dplyr::ungroup() #%>%
     # DELAY LOCATION (acute, gpled, notgpled) while spec still in data.
   dplyr::arrange(location)
 
@@ -592,7 +592,7 @@ prov_census <- dplyr::bind_rows(prov_census_hb, prov_census_la) %>%
                        obs_in_Month = sum(obds_in_month)) %>%
   dplyr::ungroup() %>%
   arrange(nhs_board, local_authority_code, delay_category) %>%
-  mutate(overall_total = discharge_within_3_days_census + census_total) %>%
+  mutate(overall_total = discharge_within_3_days_census + census_total) #%>%
     readr::write_csv(paste0(filepath, census_date,
                                     "_Provisional Census and OBD totals.csv"))
 
@@ -649,7 +649,7 @@ readr::write_csv(datafile, paste0(filepath, census_date, "_SCOTLAND.csv"))
                hscp_locality_derived, hscp_2019_name_derived, 
                out_of_area_case_indicator, chi_number, census_flag,
                location, location_name, sex_code, date_of_birth, 
-               age_at_rdd, spec_code, spec_desc, 
+               age_at_rdd, age_grp, spec_code, spec_desc, 
                admission_date, date_referred_for_sw_assessment,
                ready_for_discharge_date, discharge_date, 
                discharge_within_3_days_census, discharge_to_code, obds_in_month, 
@@ -669,7 +669,7 @@ readr::write_csv(datafile, paste0(filepath, census_date, "_SCOTLAND.csv"))
                          "_removed.csv"))
       
         datafile <- datafile %>%
-          filter(ready_for_discharge_date != discharge_date) %>%
+          filter(is.na(discharge_date) | (ready_for_discharge_date != discharge_date)) %>%
           readr::write_csv(paste0(filepath, census_date,
                          "_SCOTLAND_validated.csv"))
 

@@ -8,7 +8,7 @@
 # Latest update description (if not using version control)
 # Type of script: Preparation
 # Written/run on: R Studio SERVER
-# Version of R that the script was most recently run on: ?
+# Version of R that the script was most recently run on: 3.5.1
 # Description of content: Updates trendfile with DD records from most recent publication month.
 # Approximate run time: TBC
 ##########################################################
@@ -24,98 +24,53 @@ source("00_setup_environment.R")
 ### 2. Get Scotland_validated file for latest month ----
 
 # Read in file
-datafile <-
-  readr::read_csv(paste0(filepath, census_date, "_Scotland_validated.csv"))
+datafile <- data.frame(readr::read_csv(paste0(filepath, census_date, 
+                                   "_SCOTLAND_validated.csv")))
 
-# Convert PatientDOB to date variable, add variable 'cennum' (census number for latest month)
-datafile2 <- datafile %>% 
-  mutate(PatientDOB=as.Date(PatientDOB)) %>% 
-  mutate(cennum=
-           if_else(MONTHFLAG=='Jul 2019',164, 1, 0)) %>% 
-  mutate(CalYr=
-           if_else(MONTHFLAG=='Jul 2019',2019, 1, 0)) %>% 
-  mutate(FinYr=
-           if_else(MONTHFLAG=='Jul 2019',2019/20, 1, 0))
+# Add variable 'cen_num' (census number for latest month)
+# First census is 
+datafile <- datafile %>%
+  mutate(cen_num = lubridate::time_length(
+    lubridate::interval(first_census_month, first_dom), "months"),
+    cal_yr = lubridate::year(census_date),
+    fin_yr = phsmethods::fin_year(census_date))
 
-  # Fix finyr recode
-datafile2$FinYr[datafile2$FinYr==100.95] <- "2019/20"
-
-datafile2 <- mutate(datafile2, CalYr = as.character(CalYr)) %>% 
-            mutate(cennum = as.character(cennum))
-
-# Add specialty description
-datafile2 <- arrange(datafile2, SpecialtyCode)
-    
-lookup_spec <-
-  read_sav("/conf/delayed_discharges/Data files/Single Submissions (July 2016 onwards)/Specialty.sav")
-
-datafile2 <- left_join(datafile2, lookup_spec,
-                       by = c("SpecialtyCode" = "SpecialtyCode"))
-  
-# Add hospital name
-lookup_hosp <-
-read_sav("/conf/delayed_discharges/Data files/Single Submissions (July 2016 onwards)/location.sav")
-
-datafile2 <- left_join(datafile2, lookup_hosp,
-by = c("HealthLocationCode" = "Location"))
-
-# Remove additional variables pulled through from lookup
-datafile2 <- select(datafile2, -Add1:-filler)
-
-# Specialty match check
-Check <- filter (datafile2, SpecialtyDesc.x != SpecialtyDesc.y)
-
-# hospital name match check
-Check <- filter (datafile2, Locname != hospname)
-
-# Drop specialtydesc.x and rename specialtydesc.y
-datafile2 <- select(datafile2, -SpecialtyDesc.x)
-datafile2 <- rename(datafile2, SpecialtyDesc = SpecialtyDesc.y)
-
-
-# Save files
-write_sav(datafile2, "/conf/delayed_discharges/RAP development/2019_07/Data/scotland/temp1.sav")
-
-temp1 <-
-  read_spss("/conf/delayed_discharges/RAP development/2019_07/Data/scotland/temp1.sav")
-
-temp1 <-
-  select(temp1, -DuplicateCHI, -hospname)
-  
-write_sav(temp1, "/conf/delayed_discharges/RAP development/2019_07/Data/scotland/temp2.sav")
+################################################################################
+# To add RDD_Day (day of week, eg. "MON", "TUE", etc) 
+# & Disc_Day (day of week, eg. "MON", "TUE",etc)
 
 ### 2.Add latest monthly file to current trend file ----
+# Using the modulus operator (%%) to return a 2 digit year by returning the fraction of dividing by 100
+# calculate initial month of trend file - 36 months previous to current census month
+initial_census_month <- first_dom - months(37)
+initial_month <- paste0(tolower(month(initial_census_month, label = TRUE, 
+                                      abbr = TRUE)), 
+                        "_", (year(initial_census_month) %% 100))
+
+previous_census_month <- first_dom - months(1)
+previous_month <-paste0(tolower(month(previous_census_month, label = TRUE, 
+                                      abbr = TRUE)), 
+                      "_", (year(previous_census_month) %% 100))
+
+current_month <- paste0(tolower(month(census_date, label = TRUE, abbr = TRUE)), 
+                        "_", (year(census_date) %% 100))
 
 # Add files together to update trend file
-
-temp2 <- read_spss("/conf/delayed_discharges/RAP development/2019_07/Data/scotland/temp2.sav")
-
-trend <- read_spss("/conf/delayed_discharges/RAP development/2019_07/Data/TrendFile_JUL16-JUN19.sav")
-
-updated_trend <- bind_rows(temp2, trend)
-
-count(updated_trend,DischargeReason)
-
-# Change discharge reason from text to code
-updated_trend$DischargeReason[updated_trend$DischargeReason=="Placement"] <- "1"
-updated_trend$DischargeReason[updated_trend$DischargeReason=="Continuing Care NHS (MEL)"] <- "1"
-updated_trend$DischargeReason[updated_trend$DischargeReason=="Discharge Home with Home Care"] <- "2"
-updated_trend$DischargeReason[updated_trend$DischargeReason=="Discharge Home"] <- "3"
-updated_trend$DischargeReason[updated_trend$DischargeReason=="Death"] <- "4"
-updated_trend$DischargeReason[updated_trend$DischargeReason=="Not Fit For Discharge"] <- "5"
-
-count(updated_trend, DischargeReason)
-                        
-# Save out as SPSS file
-
-updated_trend <- arrange(updated_trend, cennum, CHINo)
-
-write_sav(updated_trend, "/conf/delayed_discharges/RAP development/2019_07/Outputs/TrendFile_JUL16-JUL19_R.sav")
-
-# Save out to Excel
-
-write.xlsx(updated_trend,"/conf/delayed_discharges/RAP development/2019_07/Outputs/TrendFile_JUL16-JUL19_R.xlsx")
-
+trend_file <- read_csv(paste0(filepath, census_date, "trend_file_", 
+                              initial_month, "_", previous_month))
+trend_file <- trend_file %>%
+  bind_rows(datafile, trend_file) %>%
+  # Change discharge reason from text to code
+  mutate(discharge_reason =
+           case_when(discharge_reason == "Placement" ~ "1",
+           discharge_reason == "Continuing Care NHS (MEL)" ~ "1",
+           discharge_reason == "Discharge Home with Home Care" ~ "2",
+           discharge_reason == "Discharge Home" ~ "3",
+           discharge_reason == "Death" ~ "4",
+           discharge_reason == "Not Fit For Discharge" ~ "5")) %>%
+  arrange(cen_num, chi_number) %>%
+  readr::write_csv(paste0(filepath, census_date, "trend_file_", 
+                          initial_month, "_", current_month))
 ### 3.Checks ----
 
 monthflag_cennum_patients <- updated_trend %>% 
