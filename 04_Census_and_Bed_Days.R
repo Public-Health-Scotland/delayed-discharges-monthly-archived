@@ -727,15 +727,15 @@ datafile25 <- full_join(datafile24,datafile21,
                         by = c(("nhs_board" = "nhs_board"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
 ###issues with double vectors and integers - attempt to sort this below.
-### why is there .x and .y variables appearing?
+### why are there .x and .y variables appearing?
 #as.integer(datafile25$obds_in_month)   
 #as.integer(datafile25$obds2.x)
-sum(datafile25$obds_in_month)
 datafile25 <- datafile25 %>% 
   rename(obds2=obds2.x)
 as.integer(datafile25$obds2)
 
-datafile25<-datafile25,-obds2.y
+#remove obds2.y
+datafile25<-(datafile25,-obds2.y)
 #if not missing (OBDs2) OBDs=OBDs2 - 
 datafile25<-datafile25 %>% mutate(obds_in_month=
    if_else(na.omit(obds2),obds2,obds_in_month))
