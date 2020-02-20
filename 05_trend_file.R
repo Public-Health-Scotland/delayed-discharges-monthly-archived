@@ -33,31 +33,25 @@ datafile <- datafile %>%
   mutate(cen_num = lubridate::time_length(
     lubridate::interval(first_census_month, first_dom), "months"),
     cal_yr = lubridate::year(census_date),
-    fin_yr = phsmethods::fin_year(census_date))
-
-################################################################################
-# To add RDD_Day (day of week, eg. "MON", "TUE", etc) 
-# & Disc_Day (day of week, eg. "MON", "TUE",etc)
+    fin_yr = phsmethods::fin_year(census_date),
+    ready_for_discharge_day = toupper(wday(ready_for_discharge_date, 
+                                           label = TRUE, abbr = TRUE)),
+    discharge_day = toupper(wday(ready_for_discharge_date, label = TRUE, 
+                                 abbr = TRUE)))
 
 ### 2.Add latest monthly file to current trend file ----
-# Using the modulus operator (%%) to return a 2 digit year by returning the fraction of dividing by 100
-# calculate initial month of trend file - 36 months previous to current census month
-initial_census_month <- first_dom - months(37)
-initial_month <- paste0(tolower(month(initial_census_month, label = TRUE, 
-                                      abbr = TRUE)), 
-                        "_", (year(initial_census_month) %% 100))
-
-previous_census_month <- first_dom - months(1)
-previous_month <-paste0(tolower(month(previous_census_month, label = TRUE, 
-                                      abbr = TRUE)), 
-                      "_", (year(previous_census_month) %% 100))
-
-current_month <- paste0(tolower(month(census_date, label = TRUE, abbr = TRUE)), 
-                        "_", (year(census_date) %% 100))
 
 # Add files together to update trend file
-trend_file <- read_csv(paste0(filepath, census_date, "trend_file_", 
-                              initial_month, "_", previous_month))
+trend_file <- readr::read_csv(paste0(filepath, prev_census_date, "_trend_file_", 
+                              initial_month, "_", previous_month, ".csv")) %>%
+  mutate(chi_number = toString(chi_number),
+         census_date = lubridate::parse_date_time(census_date, c('dmy')),
+         date_of_birth = lubridate::parse_date_time(date_of_birth, c('dmy')),
+         admission_date = lubridate::parse_date_time(admission_date, c('dmy')),
+         date_referred_for_sw_assessment = lubridate::parse_date_time(date_referred_for_sw_assessment, c('dmy')),
+         ready_for_discharge_date = lubridate::parse_date_time(ready_for_discharge_date, c('dmy')),
+         discharge_date = lubridate::parse_date_time(discharge_date, c('dmy')))
+
 trend_file <- trend_file %>%
   bind_rows(datafile, trend_file) %>%
   # Change discharge reason from text to code
@@ -68,7 +62,7 @@ trend_file <- trend_file %>%
            discharge_reason == "Discharge Home" ~ "3",
            discharge_reason == "Death" ~ "4",
            discharge_reason == "Not Fit For Discharge" ~ "5")) %>%
-  arrange(cen_num, chi_number) %>%
+  arrange(cen_num, chi_number) #%>%
   readr::write_csv(paste0(filepath, census_date, "trend_file_", 
                           initial_month, "_", current_month))
 ### 3.Checks ----
