@@ -730,7 +730,7 @@ datafile25 <- full_join(datafile24,datafile21,
 ### why is there .x and .y variables appearing?
 #as.integer(datafile25$obds_in_month)   
 #as.integer(datafile25$obds2.x)
-
+sum(datafile25$obds_in_month)
 datafile25 <- datafile25 %>% 
   rename(obds2=obds2.x)
 as.integer(datafile25$obds2)
