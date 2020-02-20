@@ -427,153 +427,153 @@ datafile7<- bind_cols(datafile6,Scotlandindreasons)
 #exclude data that is at too low a level for publication
 
 #a
-datafile7<-datafile7 %>% mutate(delay_1_to_3_days==
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons"),0,delay_1_to_3_days))
-
-datafile7<-datafile7 %>% mutate(delay_3_to_14_days,
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_3_to_14_days)))
-
-datafile7<-datafile7 %>% mutate(delay_2_to_4_weeks,
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_2_to_4_weeks)))
-
-datafile7<-datafile7 %>% mutate(delay_6_to_12_weeks,
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_6_to_12_weeks)))
-
-datafile7<-datafile7 %>% mutate(delay_3_to_6_months,
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_3_to_6_months)))
-
-datafile7<-datafile7 %>% mutate(delay_6_to_12_months,
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_6_to_12_months)))
-
-datafile7<-datafile7 %>% mutate(delay_over_12_months,
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_12_months)))
-
-datafile7<-datafile7 %>% mutate(delay_over_3_days,
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_3_days)))
-
-datafile7<-datafile7 %>% mutate(delay_under_2_weeks,
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_under_2_weeks)))
-
-datafile7<-datafile7 %>% mutate(delay_over_6_weeks,
-                        if_else(age_grp!="All" & 
-                        reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                        "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_6_weeks)))
-
-datafile7<-datafile7 %>% mutate(delay_over_4_weeks,
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_4_weeks)))
-
-datafile7<-datafile7 %>% mutate(median_delay,
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,median_delay)))
-
-datafile7<-datafile7 %>% mutate(mean_delay,
-                      if_else(age_grp!="All" & 
-                      reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                      "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,mean_delay)))
-
-
-#b
-
-datafile7<-datafile7 %>% mutate(delay_1_to_3_days,
-                                if_else(age_grp=="All" & 
-                                          reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                                                   "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_1_to_3_days)))
-
-
-datafile7<-datafile7 %>% mutate(delay_3_to_14_days,
-                                if_else(age_grp=="All" & 
-                                          reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                                                   "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_3_to_14_days)))
-
-datafile7<-datafile7 %>% mutate(delay_2_to_4_weeks,
-                                if_else(age_grp=="All" & 
-                                          reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                                                   "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_2_to_4_weeks)))
-
-datafile7<-datafile7 %>% mutate(delay_6_to_12_weeks,
-                                if_else(age_grp=="All" & 
-                                          reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                                                   "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_6_to_12_weeks)))
-
-datafile7<-datafile7 %>% mutate(delay_3_to_6_months,
-                                if_else(age_grp=="All" & 
-                                          reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                                                   "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_3_to_6_months)))
-
-datafile7<-datafile7 %>% mutate(delay_6_to_12_months,
-                                if_else(age_grp=="All" & 
-                                          reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                                                   "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_6_to_12_months)))
-
-datafile7<-datafile7 %>% mutate(delay_over_12_months,
-                                if_else(age_grp=="All" & 
-                                          reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                                                   "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_12_months)))
-
-datafile7<-datafile7 %>% mutate(delay_over_3_days,
-                                if_else(age_grp=="All" & 
-                                          reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                                                   "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_3_days)))
-
-datafile7<-datafile7 %>% mutate(delay_under_2_weeks,
-                                if_else(age_grp=="All" & 
-                                          reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                                                   "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_under_2_weeks)))
-
-datafile7<-datafile7 %>% mutate(acute,
-                                if_else(age_grp=="All" & 
-                                reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,acute)))
-                                                                      
-datafile7<-datafile7 %>% mutate(gpled,
-                                if_else(age_grp=="All" & 
-                                reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,gpled)))
-                                                                      
-                                                                      
-                                                                                                                                         
-
-datafile7<-datafile7 %>% mutate(notgpled,
-                                if_else(age_grp=="All" & 
-                                reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,notgpled)))
-
-datafile7<-datafile7 %>% mutate(acute,
-                                if_else(age_grp!="All" | 
-                                reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,acute)))
-
-datafile7<-datafile7 %>% mutate(gpled,
-                                if_else(age_grp!="All" | 
-                                reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,notgpled)))
-
-
-datafile7<-datafile7 %>% mutate(notgpled,
-                                if_else(age_grp!="All" | 
-                                reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
-                                "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,notgpled)))
+# datafile7<-datafile7 %>% mutate(delay_1_to_3_days==
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons"),0,delay_1_to_3_days))
+# 
+# datafile7<-datafile7 %>% mutate(delay_3_to_14_days,
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_3_to_14_days)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_2_to_4_weeks,
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_2_to_4_weeks)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_6_to_12_weeks,
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_6_to_12_weeks)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_3_to_6_months,
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_3_to_6_months)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_6_to_12_months,
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_6_to_12_months)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_over_12_months,
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_12_months)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_over_3_days,
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_3_days)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_under_2_weeks,
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_under_2_weeks)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_over_6_weeks,
+#                         if_else(age_grp!="All" & 
+#                         reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                         "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_6_weeks)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_over_4_weeks,
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_4_weeks)))
+# 
+# datafile7<-datafile7 %>% mutate(median_delay,
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,median_delay)))
+# 
+# datafile7<-datafile7 %>% mutate(mean_delay,
+#                       if_else(age_grp!="All" & 
+#                       reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                       "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,mean_delay)))
+# 
+# 
+# #b
+# 
+# datafile7<-datafile7 %>% mutate(delay_1_to_3_days,
+#                                 if_else(age_grp=="All" & 
+#                                           reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                                                    "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_1_to_3_days)))
+# 
+# 
+# datafile7<-datafile7 %>% mutate(delay_3_to_14_days,
+#                                 if_else(age_grp=="All" & 
+#                                           reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                                                    "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_3_to_14_days)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_2_to_4_weeks,
+#                                 if_else(age_grp=="All" & 
+#                                           reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                                                    "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_2_to_4_weeks)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_6_to_12_weeks,
+#                                 if_else(age_grp=="All" & 
+#                                           reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                                                    "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_6_to_12_weeks)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_3_to_6_months,
+#                                 if_else(age_grp=="All" & 
+#                                           reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                                                    "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_3_to_6_months)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_6_to_12_months,
+#                                 if_else(age_grp=="All" & 
+#                                           reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                                                    "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_6_to_12_months)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_over_12_months,
+#                                 if_else(age_grp=="All" & 
+#                                           reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                                                    "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_12_months)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_over_3_days,
+#                                 if_else(age_grp=="All" & 
+#                                           reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                                                    "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_over_3_days)))
+# 
+# datafile7<-datafile7 %>% mutate(delay_under_2_weeks,
+#                                 if_else(age_grp=="All" & 
+#                                           reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                                                    "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,delay_under_2_weeks)))
+# 
+# datafile7<-datafile7 %>% mutate(acute,
+#                                 if_else(age_grp=="All" & 
+#                                 reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                 "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,acute)))
+#                                                                       
+# datafile7<-datafile7 %>% mutate(gpled,
+#                                 if_else(age_grp=="All" & 
+#                                 reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                 "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,gpled)))
+#                                                                       
+#                                                                       
+#                                                                                                                                          
+# 
+# datafile7<-datafile7 %>% mutate(notgpled,
+#                                 if_else(age_grp=="All" & 
+#                                 reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                 "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,notgpled)))
+# 
+# datafile7<-datafile7 %>% mutate(acute,
+#                                 if_else(age_grp!="All" | 
+#                                 reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                 "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,acute)))
+# 
+# datafile7<-datafile7 %>% mutate(gpled,
+#                                 if_else(age_grp!="All" | 
+#                                 reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                 "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,notgpled)))
+# 
+# 
+# datafile7<-datafile7 %>% mutate(notgpled,
+#                                 if_else(age_grp!="All" | 
+#                                 reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
+#                                 "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,notgpled)))
 
 
 
@@ -590,7 +590,7 @@ write.xlsx(datafile6,paste0(filepath,"All census data.xlsx"))
 
 ################################################################################
 
-###bed days
+###bed days data###
 
 ################################################################################
 
@@ -657,7 +657,7 @@ datafile16<-rbind(ScotlandhbAllage_grpsbeddays,datafile14)
 write_sav(datafile16,paste0(filepath,"Scot and hb bed days all age_grps all reasons.sav")) # save out file
 
 #LAs
-
+#use la bed days diff age file 
 datafile17<-labeddaysdiffage_grp %>% mutate(age_grp="All")
 table(datafile17$obds_in_month)
 
@@ -681,29 +681,34 @@ datafile20<-rbind(labeddaysallreason_grp_high_level,datafile18)
 
 write_sav(datafile20,paste0(filepath,"la bed days all age_grps all reasons.sav")) # save out file
 
-#match in to la data sheet template
+###HB.
+#match in to hb data sheet template
+hbbedstemplate<-read.csv(paste0(filepath2,"hb_template.csv"))
 
-labedstepmplate<-read_spss(paste0(filepath,"la bed days template.sav"))
-#amend variable names in template to match the dta files
+hbbedstemplate <- hbbedstemplate %>% 
+  rename(nhs_board=hbname,
+         age_grp = age,
+         reason_grp_high_level = reas1)
+         
 
-labedstepmplate<-labedstepmplate%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
+hbbedstemplate<-hbbedstemplate%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
 
 
-#amend variables as necessary in order for matchi_numberng to work
+#amend variables as necessary in order for matching to work
 
-datafile21 <- left_join(datafile20,labedstepmplate,
-                      by = c(("local_authority_code" = "local_authority_code"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
+datafile21 <- left_join(datafile16,hbbedstemplate,
+                      by = c(("nhs_board" = "nhs_board"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
-arrange(datafile21,local_authority_code,age_grp,reason_grp_high_level) # arrange data in order for tables
+arrange(datafile21,nhs_board,age_grp,reason_grp_high_level) # arrange data in order for tables
 
-write_sav(datafile21,paste0(filepath,"la bed days data sheet minus standard.sav")) # save out file
-datafile21<-datafile21%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
+write_sav(datafile21,paste0(filepath,"hb bed days data sheet minus standard.sav")) # save out file
+datafile21<-datafile21%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
 
-#Add in total for Standard filter on any row that isn't all
-datafile22a<-filter(datafile21,reason_grp_high_level!="ALL") 
+#Need to ensure there is a total for standard delays (HSC/PFR added together). This is due to the format of the publication data sheet.
+#datafile22a<-filter(datafile21,reason_grp_high_level!="ALL") 
 #Rename reason_grp_high_level as Standard where there isn't a Code 9
-datafile22<-datafile22a%>% mutate(reason_grp_high_level=
-                                    if_else(reason_grp_high_level%in%c("HEALTH AND SOCIAL CARE REASONS","PATIENT/CARER/FAMILY-RElaTED REASONS"),"STANDARD","CODE 9"))
+datafile22<-datafile21%>% mutate(reason_grp_high_level=
+                                    if_else(reason_grp_high_level%in%c("HEALTH AND SOCIAL CARE REASONS","PATIENT/CARER/FAMILY-RELATED REASONS"),"STANDARD",reason_grp_high_level))
 table(datafile22$reason_grp_high_level)
 
 #select standard only.
@@ -711,29 +716,31 @@ datafile23<-filter(datafile22,reason_grp_high_level=="STANDARD")
 # aggregate 
 
 datafile24<- datafile23 %>% 
-  group_by(local_authority_code,age_grp,reason_grp_high_level) %>% 
+  group_by(nhs_board,age_grp,reason_grp_high_level) %>% 
   summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
-#datafile24<-datafile24%>%rename(OBDs2=obds_in_month)
-
-datafile25<- bind_rows(datafile24, datafile21)
-datafile25<-datafile25%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
-
-
-arrange(datafile25,local_authority_code,age_grp,reason_grp_high_level) # issue here is that the rows with zeros don't appear so have to match to output file
-
-#datafile26<-read.csv(paste0(filepath2,"hb_template.csv"))
-#bhbbedstepmplate<-bhbbedstepmplate%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
+datafile24<-datafile24%>%rename(obds2=obds_in_month)
 
 #match files
+datafile25 <- full_join(datafile24,datafile21,
+                        by = c(("nhs_board" = "nhs_board"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
+
+###issues with double vectors and integers - attempt to sort this below.
+### why is there .x and .y variables appearing?
+#as.integer(datafile25$obds_in_month)   
+#as.integer(datafile25$obds2.x)
+
+datafile25 <- datafile25 %>% 
+  rename(obds2=obds2.x)
+as.integer(datafile25$obds2)
+
+datafile25<-datafile25,-obds2.y
+#if not missing (OBDs2) OBDs=OBDs2 - 
+datafile25<-datafile25 %>% mutate(obds_in_month=
+   if_else(na.omit(obds2),obds2,obds_in_month))
 
 
-datafile27 <- right_join(datafile25, labedstemplate,
-                        by = c(("hb" = "local_authority_code"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
-
-#recode any NA as 0
-datafile27$obds_in_month[is.na(datafile27$obds_in_month)] <- 0
 
 #HB_OBD<-select(datafile27,-obds2)
 
