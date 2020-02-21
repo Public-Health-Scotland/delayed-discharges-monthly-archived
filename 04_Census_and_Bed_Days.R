@@ -223,6 +223,7 @@ datafile6<-datafile5%>% mutate(reason_grp_high_level=
 
 #remove reason_grp
 datafile6<-select(datafile6,-reason_grp)
+datafile6a<-datafile6
 datafile6a$age_grp<-"All"
 ScotHBlaallage_grps<- datafile6a %>% 
   group_by(year,monthflag,level,areaname,age_grp,reason_grp_high_level) %>% 
@@ -420,7 +421,7 @@ datafile6 <- left_join(Tabs136, Scotlandindreasons,
                        
                        
 
-datafile7<- bind_cols(datafile6,Scotlandindreasons)
+datafile7<- bind_rows(datafile6,Scotlandindreasons)
 
 ###ignored the add files to the previous trend file ( prior to July 2016) as the census and bed days files are added to the current latest file
 
@@ -577,11 +578,11 @@ datafile7<- bind_cols(datafile6,Scotlandindreasons)
 
 
 
-write_sav(datafile6,paste0(filepath,"All census data.sav"))
+write_sav(datafile7,paste0(filepath,"All census data.sav"))
 
-write.xlsx(datafile6,paste0(filepath,"All census data.xlsx"))
+write.xlsx(datafile7,paste0(filepath,"All census data.xlsx"))
 
-
+table(datafile7$areaname)
 
 
 
@@ -589,9 +590,7 @@ write.xlsx(datafile6,paste0(filepath,"All census data.xlsx"))
 
 
 ################################################################################
-
 ###bed days data###
-
 ################################################################################
 
 #Get filespath+main bed days file.SAV
@@ -629,11 +628,11 @@ write_sav(Scotbeddaysdiffage_grp,paste0(filepath,"Scot bed days diff age_grp_R.s
 
 # add files
 
-datafile13<-rbind(Scotbeddaysdiffage_grp,hbbeddaysdiffage_grp)
+Scotandhbbeddays<-rbind(Scotbeddaysdiffage_grp,hbbeddaysdiffage_grp)
 
 # Get Scotland and HB bed days for all ages
 
-datafile13<-datafile13 %>% mutate(age_grp="All")
+datafile13<-Scotandhbbeddays %>% mutate(age_grp="All")
 
 Scotlandhbbeddays<- datafile13 %>% 
   group_by(nhs_board,age_grp,reason_grp_high_level) %>% 
@@ -641,20 +640,20 @@ Scotlandhbbeddays<- datafile13 %>%
   ungroup()
 
 #add files
-datafile14<-rbind(Scotlandhbbeddays,Scotbeddaysdiffage_grp,hbbeddaysdiffage_grp)
+Scotandhbbeddaysallagesallreasons<-rbind(Scotlandhbbeddays,Scotbeddaysdiffage_grp,hbbeddaysdiffage_grp)
 
-write_sav(datafile14,paste0(filepath,"Scot and hb bed days_R.sav")) # save out file
+write_sav(Scotandhbbeddaysallagesallreasons,paste0(filepath,"Scot and hb bed days_R.sav")) # save out file
 
-datafile15<-datafile14 %>% mutate(reason_grp_high_level="All")
+datafile15<-Scotandhbbeddaysallagesallreasons %>% mutate(reason_grp_high_level="All")
 
 ScotlandhbAllage_grpsbeddays<- datafile15 %>% 
   group_by(nhs_board,age_grp,reason_grp_high_level) %>% 
   summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
-datafile16<-rbind(ScotlandhbAllage_grpsbeddays,datafile14)
+Scotlandhbbeddaysallagegrpsallreasons<-rbind(ScotlandhbAllage_grpsbeddays,Scotandhbbeddaysallagesallreasons)
 
-write_sav(datafile16,paste0(filepath,"Scot and hb bed days all age_grps all reasons.sav")) # save out file
+write_sav(Scotlandhbbeddaysallagegrpsallreasons,paste0(filepath,"Scot and hb bed days all age_grps all reasons.sav")) # save out file
 
 #LAs
 #use la bed days diff age file 
@@ -696,7 +695,7 @@ hbbedstemplate<-hbbedstemplate%>% mutate(nhs_board=toupper(nhs_board),age_grp=to
 
 #amend variables as necessary in order for matching to work
 
-datafile21 <- left_join(datafile16,hbbedstemplate,
+datafile21 <- left_join(Scotlandhbbeddaysallagegrpsallreasons,hbbedstemplate,
                       by = c(("nhs_board" = "nhs_board"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
 arrange(datafile21,nhs_board,age_grp,reason_grp_high_level) # arrange data in order for tables
@@ -720,35 +719,44 @@ datafile24<- datafile23 %>%
   summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
-datafile24<-datafile24%>%rename(obds2=obds_in_month)
+datafile24<-datafile24%>%rename(obds3=obds_in_month)
 
 #match files
-datafile25 <- full_join(datafile24,datafile21,
+datafile25 <- left_join(datafile24,datafile21,
                         by = c(("nhs_board" = "nhs_board"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
-###issues with double vectors and integers - attempt to sort this below.
-### why are there .x and .y variables appearing?
-#as.integer(datafile25$obds_in_month)   
-#as.integer(datafile25$obds2.x)
-datafile25 <- datafile25 %>% 
-  rename(obds2=obds2.x)
-as.integer(datafile25$obds2)
-
-#remove obds2.y
-datafile25<-(datafile25,-obds2.y)
-#if not missing (OBDs2) OBDs=OBDs2 - 
-datafile25<-datafile25 %>% mutate(obds_in_month=
-   if_else(na.omit(obds2),obds2,obds_in_month))
+datafile25a<-bind_rows(datafile24,datafile21)
 
 
+#replace obds in correct column for all reason groups
+datafile26<-datafile25a %>% mutate(obds_in_month=
+   if_else(!is.na(obds3),obds3,obds_in_month))
 
-#HB_OBD<-select(datafile27,-obds2)
+#remove surplus columns
+datafile26<-select(datafile26,-obds3,-obds2)
+
+#match back to template to ensure every row is populated
+
+datafile27 <- left_join(hbbedstemplate,datafile26,
+                        by = c(("nhs_board" = "nhs_board"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
+
+#replace obds in correct column for all reason groups
+datafile27<-datafile27 %>% mutate(obds_in_month=
+                                     if_else(is.na(obds_in_month),0,obds_in_month))
+
+#remove surplus columns
+datafile27<-select(datafile27,-obds2)
+
+datafile27<-arrange(datafile27,datafile27$nhs_board,datafile27$age_grp,datafile27$reason_grp_high_level)
+
+
+#H207 rows - should be 225
 
 write.xlsx(datafile27,paste0(filepath,"HB bed days data sheet_R.xlsx"))
 
-
+#########################################
 #la bed days - get la bed days template
-
+#########################################
 labedstemplate<-read.csv(paste0(filepath2,"la_template.csv"))
 
 labedstemplate <- labedstemplate %>% 
@@ -763,37 +771,37 @@ datafile20<-datafile20%>% mutate(local_authority_code=toupper(local_authority_co
 
 #amend variables as necessary in order for matchi_numberng to work
 
-datafile31 <- left_join(datafile20,labedstemplate,
+labeddaysdatasheetminusstandard <- left_join(datafile20,labedstemplate,
                         by = c(("local_authority_code" = "local_authority_code"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
-arrange(datafile31,local_authority_code,age_grp,reason_grp_high_level) # arrange data in order for tables
+arrange(labeddaysdatasheetminusstandard,local_authority_code,age_grp,reason_grp_high_level) # arrange data in order for tables
 
-write_sav(datafile31,paste0(filepath,"la bed days data sheet minus standard.sav")) # save out file
-datafile31<-datafile31%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
+write_sav(labeddaysdatasheetminusstandard,paste0(filepath,"la bed days data sheet minus standard.sav")) # save out file
+labeddaysdatasheetminusstandard<-labeddaysdatasheetminusstandard%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
 
 #Add in total for Standard filter on any row that isn't all
-datafile32a<-filter(datafile31,reason_grp_high_level!="ALL") 
+datafile32a<-filter(labeddaysdatasheetminusstandard,reason_grp_high_level!="ALL") 
 #Rename reason_grp_high_level as Standard where there isn't a Code 9
 datafile32<-datafile32a%>% mutate(reason_grp_high_level=
-                                    if_else(reason_grp_high_level%in%c("HEALTH AND SOCIAL CARE REASONS","PATIENT/CARER/FAMILY-RElaTED REASONS"),"STANDARD","CODE 9"))
-table(datafile22$reason_grp_high_level)
+                                    if_else(reason_grp_high_level%in%c("HEALTH AND SOCIAL CARE REASONS","PATIENT/CARER/FAMILY-RELATED REASONS"),"STANDARD","CODE 9"))
+table(datafile32$reason_grp_high_level)
 
 #select standard only.
 datafile33<-filter(datafile32,reason_grp_high_level=="STANDARD")
-# aggregate 
+# aggregate LA Standard delays
 
-datafile34<- datafile33 %>% 
+lastandard<- datafile33 %>% 
   group_by(local_authority_code,age_grp,reason_grp_high_level) %>% 
   summarise(obds_in_month=sum(obds_in_month,na.rm=TRUE)) %>% 
   ungroup()
 
 #datafile24<-datafile24%>%rename(OBDs2=obds_in_month)
 
-datafile35<- bind_rows(datafile34, datafile31)
-datafile35<-datafile25%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
+lastandardandothers<- bind_rows(lastandard, labeddaysdatasheetminusstandard)
+lastandardandothers<-lastandardandothers%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
 
 
-arrange(datafile35,local_authority_code,age_grp,reason_grp_high_level) # issue here is that the rows with zeros don't appear so have to match to output file
+arrange(lastandardandothers,local_authority_code,age_grp,reason_grp_high_level) # issue here is that the rows with zeros don't appear so have to match to output file
 
 #datafile26<-read.csv(paste0(filepath2,"hb_template.csv"))
 #bhbbedstepmplate<-bhbbedstepmplate%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
@@ -801,15 +809,19 @@ arrange(datafile35,local_authority_code,age_grp,reason_grp_high_level) # issue h
 #match files
 
 
-datafile37 <- right_join(datafile35, labedstemplate,
+laallvariations <- left_join(labedstemplate,lastandardandothers,
                          by = c(("local_authority_code" = "local_authority_code"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
 
-#recode any NA as 0
-# datafile37$obds_in_month[is.na(datafile37$obds_in_month)] <- 0
+#replace obds in correct column for all reason groups
+laallvariations<-laallvariations %>% mutate(obds_in_month=
+                                    if_else(is.na(obds_in_month),0,obds_in_month))
+
+
+laallvariations<-arrange(laallvariations,laallvariations$local_authority_code,laallvariations$age_grp,laallvariations$reason_grp_high_level)
 
 #
 
-write.xlsx(datafile37,paste0(filepath,"LA bed days data sheet_R.xlsx"))
+write.xlsx(laallvariations,paste0(filepath,"LA bed days data sheet_R.xlsx"))
 
 
 
