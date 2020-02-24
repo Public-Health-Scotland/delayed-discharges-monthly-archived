@@ -823,7 +823,7 @@ laallvariations<-arrange(laallvariations,laallvariations$local_authority_code,la
 
 write.xlsx(laallvariations,paste0(filepath,"LA bed days data sheet_R.xlsx"))
 
-
+ 
 
 
 
