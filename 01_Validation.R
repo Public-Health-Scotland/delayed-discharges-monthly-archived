@@ -48,18 +48,18 @@ datafile  %>%
 
 
 
-datafile<-datafile%>% mutate(DischargeReason=
-    if_else(DischargeReason %in%c("1","01"), "Placement",
-    if_else(DischargeReason %in%c("2","02"), "Discharge Home with Home Care",
-    if_else(DischargeReason %in%c("3","03"), "Discharge Home",
-    if_else(DischargeReason %in%c("4","04"), "Death",
-    if_else(DischargeReason %in%c("5","05"), "Not Fit For Discharge", " "))))))
+datafile<-datafile%>% mutate(discharge_to_code=
+    if_else(discharge_to_code %in%c("1","01"), "Placement",
+    if_else(discharge_to_code %in%c("2","02"), "Discharge Home with Home Care",
+    if_else(discharge_to_code %in%c("3","03"), "Discharge Home",
+    if_else(discharge_to_code %in%c("4","04"), "Death",
+    if_else(discharge_to_code %in%c("5","05"), "Not Fit For Discharge", " "))))))
 
-table(datafile$DischargeReason)
+table(datafile$discharge_to_code)
 
 #Check that variable length of postcode is 7 or less
 datafile<-datafile %>% mutate(postcode_chars=
-  if_else(nchar(datafile$PatientPostcode)>7,1,0))
+  if_else(nchar(datafile$postcode)>7,1,0))
 
 table(datafile$postcode_chars) # no postcodes with more than 7 characters
 
@@ -67,16 +67,16 @@ table(datafile$postcode_chars) # no postcodes with more than 7 characters
 datafile <-  datafile %>%
   
   # First remove all spaces from postcode variable
-  mutate(PatientPostcode = gsub("\\s", "", PatientPostcode),
+  mutate(postcode = gsub("\\s", "", postcode),
          
          # Then add space (or spaces) at appropriate juncture (depending on
          # the number of characters) to get the postcode into 7-character
          # format
-         PatientPostcode = case_when(
-           is.na(PatientPostcode) ~ NA_character_,
-           str_length(PatientPostcode) == 5 ~ sub("(.{2})", "\\1  ", PatientPostcode),
-           str_length(PatientPostcode) == 6 ~ sub("(.{3})", "\\1 ", PatientPostcode),
-           TRUE ~ PatientPostcode))
+         postcode = case_when(
+           is.na(postcode) ~ NA_character_,
+           str_length(postcode) == 5 ~ sub("(.{2})", "\\1  ", postcode),
+           str_length(postcode) == 6 ~ sub("(.{3})", "\\1 ", postcode),
+           TRUE ~ postcode))
 
 
 #datafile$FirstDoM <- month_start  # FirstDoM becomes month_start
@@ -87,28 +87,28 @@ datafile<-datafile%>%
   mutate(dob2=as.numeric(paste0(str_sub(date_of_birth,7,10),str_sub(date_of_birth,4,5),
                                 str_sub(date_of_birth,1,2))))
 
-#Create rmddate as a string
+#Create ready_medical_discharge_date as a string
 datafile<-datafile%>% 
-  mutate(rmddate=as.numeric(paste0(str_sub(Readyfordischargedate,7,10),str_sub(Readyfordischargedate,4,5),
-                                   str_sub(Readyfordischargedate,1,2))))
+  mutate(ready_medical_discharge_date=as.numeric(paste0(str_sub(date_declared_medically_fit,7,10),str_sub(date_declared_medically_fit,4,5),
+                                   str_sub(date_declared_medically_fit,1,2))))
 
 
 #Compute Age at RMD Date ( Ready for Medical Discharge Date )
 
 datafile<-datafile %>% 
-  mutate(AGEATRDD=trunc((rmddate-dob2)/10000))
+  mutate(age_at_rdd=trunc((ready_medical_discharge_date-dob2)/10000))
 
-# Check there are no cases with a missing AgeatRDD
-df_missingageatrdd<-filter(datafile,is.na(datafile$AGEATRDD))
+# Check there are no cases with a missing age_at_rdd
+df_missingage_at_rdd<-filter(datafile,is.na(datafile$age_at_rdd))
 
-#select if Ageatrdd>=18
+#select if age_at_rdd>=18
 
-table(datafile$AGEATRDD)
+table(datafile$age_at_rdd)
 
 #amend dates to same formats
-datafile$Readyfordischargedate<-format(as.Date(datafile$Readyfordischargedate,"%d/%m/%Y"),"%Y/%m/%d")
-datafile$OriginalAdmissionDate<-format(as.Date(datafile$OriginalAdmissionDate,"%d/%m/%Y"),"%Y/%m/%d")
-datafile$DateDischarge<-format(as.Date(datafile$DateDischarge,"%d/%m/%Y"),"%Y/%m/%d")
+datafile$date_declared_medically_fit<-format(as.Date(datafile$date_declared_medically_fit,"%d/%m/%Y"),"%Y/%m/%d")
+datafile$admission_date<-format(as.Date(datafile$admission_date,"%d/%m/%Y"),"%Y/%m/%d")
+datafile$discharge_date<-format(as.Date(datafile$discharge_date,"%d/%m/%Y"),"%Y/%m/%d")
 datafile$date_of_birth<-format(as.Date(datafile$date_of_birth,"%d/%m/%Y"),"%Y/%m/%d")
 month_start<-format(as.Date(month_start,"%d/%m/%Y"),"%Y/%m/%d")
 month_end<-format(as.Date(month_end,"%d/%m/%Y"),"%Y/%m/%d")
@@ -116,35 +116,35 @@ month_end<-format(as.Date(month_end,"%d/%m/%Y"),"%Y/%m/%d")
 
 #Keep only hospital locations or N465R (in Grampian)
 datafile<-datafile%>% 
-  filter(str_sub(HealthLocationCode,5,5)=="H" | HealthLocationCode=="N465R")
+  filter(str_sub(discharge_hospital_nat_code,5,5)=="H" | discharge_hospital_nat_code=="N465R")
 
 
 ### Check if any RDD=DD ( select if RDD<>DD)  ----
-datafile <- filter(datafile, is.na(DateDischarge) | Readyfordischargedate!=DateDischarge)
+datafile <- filter(datafile, is.na(discharge_date) | date_declared_medically_fit!=discharge_date)
 
 #ensure no records where RDD=LastDOM
 
-datafile<-filter(datafile,Readyfordischargedate!=month_end)
+datafile<-filter(datafile,date_declared_medically_fit!=month_end)
 
 # compute Age Groupings ( ensures no-one aged under 18 is selected)
-datafile<-datafile%>% mutate(AgeGrouping=
-                    if_else(AGEATRDD<75, "18-74",
-                    if_else(AGEATRDD>=75, "75+", " ")))
+datafile<-datafile%>% mutate(age_grp=
+                    if_else(age_at_rdd<75, "18-74",
+                    if_else(age_at_rdd>=75, "75+", " ")))
 
-#Check AgeGrouping
-table(datafile$AgeGrouping)
+#Check age_grp
+table(datafile$age_grp)
 
 
-datafile<-datafile %>% mutate(REASONGRP_HIGHLEVEL=
+datafile<-datafile %>% mutate(reason_group_high_level=
                       if_else(dd_code_1=="100","Code 100",
                       if_else(dd_code_1=="9","Code 9",
                       if_else(dd_code_1 %in%c("11A","11B","23C","23D","24A","24B","24C","24D","24E","24F","27A","25A","25D","25E","25F","44"),"Health and Social Care Reasons",
                       if_else(dd_code_1%in%c("51","52","61","67","71","72","73","74"),"Patient/Carer/Family-related reasons","")))))
 
-table(datafile$REASONGRP_HIGHLEVEL) # check no outliers that haven't been coded
+table(datafile$reason_group_high_level) # check no outliers that haven't been coded
 
 #High Level Reason Code Grouping
-datafile<-datafile%>% mutate(REASONGRP=
+datafile<-datafile%>% mutate(reason_group=
         if_else(dd_code_1%in%c("11A","11B"), "H&SC - Community Care Assessment",
         if_else(dd_code_1%in%c("23C","23D"), "H&SC - Funding",
         if_else(dd_code_1%in%c("24A","24B","24C","24D","24E","24F","27A")|dd_code_2%in%c("24DX","24EX"), "H&SC - Place Availability",
@@ -157,7 +157,7 @@ datafile<-datafile%>% mutate(REASONGRP=
         if_else(dd_code_2=="51X","Adults with Incapacity Act"," ")))))))))))
 
 #Check output
-table(datafile$REASONGRP) #cant check with tables yet as this is record total ( not just census)
+table(datafile$reason_group) #cant check with tables yet as this is record total ( not just census)
 
 
 
@@ -204,14 +204,14 @@ table(datafile$DELAY_DESCRIPTION) #check
 '%notin%' <- Negate('%in%')
 datafile<-datafile %>% mutate(Census_Date=census_date)
 
-datafile<-datafile %>% mutate(CENSUSFLAG=
-          if_else(is.na(DateDischarge) & Readyfordischargedate<Census_Date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"Y",
-          if_else(DateDischarge>=Census_Date & Readyfordischargedate<census_date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"Y",
-          if_else(DateDischarge<=Census_Date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"",
-          if_else(DateDischarge==Readyfordischargedate & dd_code_1!="100" & dd_code_2 %!in% c("26X","46X"),"",
-          if_else(DateDischarge>=Census_Date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"",""))))))
+datafile<-datafile %>% mutate(census_flag=
+          if_else(is.na(discharge_date) & date_declared_medically_fit<Census_Date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"Y",
+          if_else(discharge_date>=Census_Date & date_declared_medically_fit<census_date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"Y",
+          if_else(discharge_date<=Census_Date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"",
+          if_else(discharge_date==date_declared_medically_fit & dd_code_1!="100" & dd_code_2 %!in% c("26X","46X"),"",
+          if_else(discharge_date>=Census_Date & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"",""))))))
 
-table(datafile$CENSUSFLAG) # OK here 209 matches census output table publication
+table(datafile$census_flag) # OK here 209 matches census output table publication
 #Flag those discharged up to 3 working days after census
 
 #Add in variable census_datePlus3WorkingDays
@@ -220,19 +220,19 @@ datafile<-datafile%>% mutate(census_datePlus3WorkingDays=Census_Date+5)
 
 #Flag those with a dischargedate le census_datePlus3WorkingDays
 
-datafile<-datafile %>% mutate(Dischargewithin3daysCensus=
-                                if_else(CENSUSFLAG=="Y" & DateDischarge<=census_datePlus3WorkingDays & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"Y"," "))
+datafile<-datafile %>% mutate(discharge_within_3_days_census=
+                                if_else(census_flag=="Y" & discharge_date<=census_datePlus3WorkingDays & dd_code_1!="100" & dd_code_2 %!in%c("26X","46X"),"Y"," "))
 
-table (datafile$Dischargewithin3daysCensus)
+table (datafile$discharge_within_3_days_census)
 #change "Y" to a count for DischargeWithin3Days
-datafile$Dischargewithin3daysCensus[datafile$Dischargewithin3daysCensus=="Y"] <- 1
-datafile$Dischargewithin3daysCensus[datafile$Dischargewithin3daysCensus==""] <- 0
-datafile$Dischargewithin3daysCensus[is.na(datafile$Dischargewithin3daysCensus)] <- 0
+datafile$discharge_within_3_days_census[datafile$discharge_within_3_days_census=="Y"] <- 1
+datafile$discharge_within_3_days_census[datafile$discharge_within_3_days_census==""] <- 0
+datafile$discharge_within_3_days_census[is.na(datafile$discharge_within_3_days_census)] <- 0
 
 
-datafile<-datafile %>% mutate(Dischargewithin3daysCensus=as.numeric(Dischargewithin3daysCensus)) # change variable to numeric
-datafile$Dischargewithin3daysCensus[is.na(datafile$Dischargewithin3daysCensus)] <- 0
-datafile_check<-datafile %>% filter(Dischargewithin3daysCensus==1 & is.na(CENSUSFLAG))
+datafile<-datafile %>% mutate(discharge_within_3_days_census=as.numeric(discharge_within_3_days_census)) # change variable to numeric
+datafile$discharge_within_3_days_census[is.na(datafile$discharge_within_3_days_census)] <- 0
+datafile_check<-datafile %>% filter(discharge_within_3_days_census==1 & is.na(census_flag))
 
 
 #Calculate Bed Days in Current Month
@@ -255,37 +255,37 @@ datafile$census_datePlus3WorkingDays<-format(as.Date(datafile$census_datePlus3Wo
 
 
 
-#Flag if Readyfordischargedate in current month
+#Flag if date_declared_medically_fit in current month
 datafile<-datafile %>% mutate(DRMDInMonth=
-                                if_else(Readyfordischargedate>=month_start & Readyfordischargedate<=month_end,"Y"," "))
+                                if_else(date_declared_medically_fit>=month_start & date_declared_medically_fit<=month_end,"Y"," "))
 
 #Flag if dischargedate in current month
-#added in the !is.na element to ensure any N/A DateDischarge is counted too in totals
+#added in the !is.na element to ensure any N/A discharge_date is counted too in totals
 datafile<-datafile %>% 
-  mutate(DateDischargeInMonth= if_else((DateDischarge>=month_start & DateDischarge<=month_end)
-                                       & !is.na(DateDischarge),"Y",""))
+  mutate(discharge_dateInMonth= if_else((discharge_date>=month_start & discharge_date<=month_end)
+                                       & !is.na(discharge_date),"Y",""))
 
 
 table(datafile$DRMDInMonth)  # check that 
 ##add in NA for Date Discharge to be month_end
 
 datafile<-datafile %>% mutate(OBDs_intheMonth=
-                    if_else(DRMDInMonth=="Y" & DateDischargeInMonth=="Y",difftime(DateDischarge, Readyfordischargedate, units = "days"),
-                    if_else(DRMDInMonth==" " & DateDischargeInMonth=="Y",difftime(DateDischarge, month_start, units = "days")+1,
-                    if_else(DRMDInMonth=="Y" & DateDischargeInMonth!="Y",difftime(month_end, Readyfordischargedate, units = "days"),
-                    if_else(DRMDInMonth==" " & DateDischargeInMonth!="Y",difftime(month_end, month_start, units = "days")+1,0)))))
+                    if_else(DRMDInMonth=="Y" & discharge_dateInMonth=="Y",difftime(discharge_date, date_declared_medically_fit, units = "days"),
+                    if_else(DRMDInMonth==" " & discharge_dateInMonth=="Y",difftime(discharge_date, month_start, units = "days")+1,
+                    if_else(DRMDInMonth=="Y" & discharge_dateInMonth!="Y",difftime(month_end, date_declared_medically_fit, units = "days"),
+                    if_else(DRMDInMonth==" " & discharge_dateInMonth!="Y",difftime(month_end, month_start, units = "days")+1,0)))))
 
 table(datafile$DRMDInMonth)           # matches syntax output
-table(datafile$DateDischargeInMonth)  # matches syntax output 
+table(datafile$discharge_dateInMonth)  # matches syntax output 
 table(datafile$OBDs_intheMonth)      # matches syntax output
-table(datafile$HealthLocationCode) # Checking wh
+table(datafile$discharge_hospital_nat_code) # Checking wh
 datafile<-datafile %>% mutate(NoofPatients=1)
 table(datafile$NoofPatients) #525
 table(datafile$dd_code_1)
 #Create Query Flags
 
 
-#Create rmddate as a string
+#Create ready_medical_discharge_date as a string
 datafile<-datafile%>% 
   mutate(query_CHI_DOB=
            if_else(paste0(str_sub(date_of_birth,9,10),str_sub(date_of_birth,6,7),str_sub(date_of_birth,3,4))!=str_sub(chi_number,1,6),"Y"," "))
@@ -299,11 +299,11 @@ Postcodedirectory<-read_sav("/conf/linkage/output/lookups/Unicode/Geography/Scot
          
 #Remove spaces from postcode within datafile
 
-#stringr::str_remove_all(datafile$PatientPostcode," ")
+#stringr::str_remove_all(datafile$postcode," ")
 
 # add flag to file showing that postcode is in the Postcodedirectory ( don't flag NK010AA postcodes as these are homeless )
 
-datafile<-datafile %>% dplyr::mutate(flag_pc=if_else(PatientPostcode %in% Postcodedirectory$pc7 | PatientPostcode=="NK010AA",1,0))
+datafile<-datafile %>% dplyr::mutate(flag_pc=if_else(postcode %in% Postcodedirectory$pc7 | postcode=="NK010AA",1,0))
 
 #create new flag for any invalid postcodes
 datafile<-datafile %>% mutate(query_PCodeInvalid=
@@ -325,27 +325,27 @@ datafile<-datafile %>% mutate(query_SpecInvalid=
 #Check data discharged is in current month
 
 datafile<-datafile %>%  mutate(query_Month=
-                                 if_else(is.na(DateDischarge) & DateDischarge<month_start,"Y"," "))
+                                 if_else(is.na(discharge_date) & discharge_date<month_start,"Y"," "))
 
 #Check RDD in current month
 
 datafile<-datafile %>%  mutate(query_RDD=
-                                 if_else(Readyfordischargedate>month_end,"Y"," "))
+                                 if_else(date_declared_medically_fit>month_end,"Y"," "))
 
 #Check for Missing Discharge Reason
 
 datafile<-datafile %>%  mutate(query_MissingDischReas=
-                                 if_else(!is.na(DateDischarge) & DischargeReason==" ","Y"," "))
+                                 if_else(!is.na(discharge_date) & discharge_to_code==" ","Y"," "))
 
 #Check for Missing Discharge Date
 
 datafile<-datafile %>%  mutate(query_MissingDischDate=
-                                 if_else(is.na(DateDischarge) & DischargeReason!=" ","Y"," "))
+                                 if_else(is.na(discharge_date) & discharge_to_code!=" ","Y"," "))
 
 #Check for DischReasonInvalid
 
 datafile<-datafile %>%  mutate(query_DischReasInvalid=
-                                 if_else(DischargeReason%!in%c("Death","Discharge Home","Discharge Home with Home Care",
+                                 if_else(discharge_to_code%!in%c("Death","Discharge Home","Discharge Home with Home Care",
                                                                "Not Fit For Discharge","Placement"," "),"Y"," "))
 
 #Check for DiscontinuedCode
@@ -407,7 +407,7 @@ table(datafile$query_LocalCode)
 #update query flags for blanks
 
 datafile<-datafile %>%  mutate(query_location=
-                                 if_else(HealthLocationCode==" ","Y"," "))
+                                 if_else(discharge_hospital_nat_code==" ","Y"," "))
 
 datafile<-datafile %>%  mutate(query_CHI=
                                  if_else(is.na(chi_number),"Y"," "))
@@ -416,7 +416,7 @@ datafile<-datafile %>%  mutate(query_LA=
                                  if_else(local_authority_code%in%c("Missing"," "),"Y"," "))
 
 datafile<-datafile %>%  mutate(query_PCode=
-                                 if_else(PatientPostcode==" ","Y"," "))
+                                 if_else(postcode==" ","Y"," "))
 
 datafile<-datafile %>%  mutate(query_DOB=
                                  if_else(date_of_birth==" ","Y"," "))
@@ -428,30 +428,30 @@ datafile<-datafile %>%  mutate(query_Spec=
                                  if_else(discharge_specialty_nat_code==" ","Y"," "))
 
 datafile<-datafile %>%  mutate(query_RDD=
-                                 if_else(is.na(Readyfordischargedate),"Y"," "))
+                                 if_else(is.na(date_declared_medically_fit),"Y"," "))
 
 datafile<-datafile %>%  mutate(query_Reas1=
                                  if_else(is.na(dd_code_1),"Y"," "))
 
 datafile<-datafile %>%  mutate(query_AdmDate=
-                                 if_else(is.na(OriginalAdmissionDate),"Y"," "))
+                                 if_else(is.na(admission_date),"Y"," "))
 
 
 
 #Query flags for date errors
 
 datafile<-datafile %>%  mutate(query_RDDltAdmDate=
-                                 if_else(Readyfordischargedate<OriginalAdmissionDate,"Y"," "))
+                                 if_else(date_declared_medically_fit<admission_date,"Y"," "))
 
 datafile<-datafile %>%  mutate(query_DischDateltRDD=
-                                 if_else(DateDischarge<Readyfordischargedate,"Y"," "))
+                                 if_else(discharge_date<date_declared_medically_fit,"Y"," "))
 
 datafile<-datafile %>%  mutate(query_DischDateltAdmDate=
-                                 if_else(DateDischarge<OriginalAdmissionDate,"Y"," "))
+                                 if_else(discharge_date<admission_date,"Y"," "))
 #OBDle0 error variable
 
 datafile<-datafile %>%  mutate(query_OBDle0=
-                                 if_else(CENSUSFLAG=="Y" & OBDs_intheMonth<=0,"Y"," "))
+                                 if_else(census_flag=="Y" & OBDs_intheMonth<=0,"Y"," "))
 
 # check for duplicate chi_number and flag
 
@@ -466,14 +466,14 @@ table(datafile$DuplicateCHI)
 # matches output from spss ( 17 duplicate chi records, 16 with two and one with 3)
 
 # check for duplicate census records and flag
-datafile<-arrange(datafile,chi_number,desc(CENSUSFLAG))
+datafile<-arrange(datafile,chi_number,desc(census_flag))
 
 
 # check for duplicate CENSUS RECORDS and flag
 
-datafile<-datafile %>% tidylog::group_by(chi_number,CENSUSFLAG) %>%
-  tidylog::mutate(query_DuplicateCHI_Census = max(row_number())>1 & CENSUSFLAG=="Y") %>%
-  #query_DuplicateCHI_Census == if_else(max(row_number())>1 & CENSUSFLAG="Y"),"Y"," ") %>%
+datafile<-datafile %>% tidylog::group_by(chi_number,census_flag) %>%
+  tidylog::mutate(query_DuplicateCHI_Census = max(row_number())>1 & census_flag=="Y") %>%
+  #query_DuplicateCHI_Census == if_else(max(row_number())>1 & census_flag="Y"),"Y"," ") %>%
   dplyr::ungroup()
 
 table(datafile$query_DuplicateCHI_Census)
@@ -483,50 +483,50 @@ table(datafile$query_DuplicateCHI_Census)
 datafile<-arrange(datafile,chi_number,desc(query_DuplicateCHI_Census))
 
 datafile<-datafile %>% tidylog::group_by(chi_number,query_DuplicateCHI_Census) %>%
-  tidylog::mutate(query_DuplicateCHI_Census = max(row_number())>1 & CENSUSFLAG=="Y") %>%
-  #query_DuplicateCHI_Census == if_else(max(row_number())>1 & CENSUSFLAG="Y"),"Y"," ") %>%
+  tidylog::mutate(query_DuplicateCHI_Census = max(row_number())>1 & census_flag=="Y") %>%
+  #query_DuplicateCHI_Census == if_else(max(row_number())>1 & census_flag="Y"),"Y"," ") %>%
   dplyr::ungroup()
 
 table(datafile$query_DuplicateCHI_Census)
 #Where CHI number and Admission Date match - check same RDD date on multiple records?
-datafile<-arrange(datafile,chi_number,OriginalAdmissionDate,Readyfordischargedate,DateDischarge)
+datafile<-arrange(datafile,chi_number,admission_date,date_declared_medically_fit,discharge_date)
 
-datafile<-datafile %>% tidylog::group_by(chi_number,OriginalAdmissionDate,Readyfordischargedate) %>%
+datafile<-datafile %>% tidylog::group_by(chi_number,admission_date,date_declared_medically_fit) %>%
   tidylog::mutate(query_OverlappingDates = if_else(max(row_number())>1,"Y"," ")) %>%
   dplyr::ungroup()
 
 table(datafile$query_OverlappingDates)
 
 #Where CHI number and Admission Date match - check same Death date on multiple records?
-datafile<-arrange(datafile,chi_number,OriginalAdmissionDate,Readyfordischargedate,DateDischarge)
+datafile<-arrange(datafile,chi_number,admission_date,date_declared_medically_fit,discharge_date)
 
-datafile<-datafile %>% tidylog::group_by(chi_number,OriginalAdmissionDate,Readyfordischargedate) %>%
-  tidylog::mutate(query_OverlappingDates = if_else(chi_number==lag(chi_number) & OriginalAdmissionDate==lag(OriginalAdmissionDate) & 
-                                                     Readyfordischargedate==lag(Readyfordischargedate) & DateDischarge!=lag(DateDischarge) & DischargeReason==lag(DischargeReason),"Y"," ")) %>%
+datafile<-datafile %>% tidylog::group_by(chi_number,admission_date,date_declared_medically_fit) %>%
+  tidylog::mutate(query_OverlappingDates = if_else(chi_number==lag(chi_number) & admission_date==lag(admission_date) & 
+                                                     date_declared_medically_fit==lag(date_declared_medically_fit) & discharge_date!=lag(discharge_date) & discharge_to_code==lag(discharge_to_code),"Y"," ")) %>%
   dplyr::ungroup()
 
 
 
 #RDD before Discharge Date on previous record.
-#if CHNO=lagchi_number and OriginalAdmissionDate=lagOriginalADmissionDate and REadyfordischargedate<lagReadyfordischargedate and missing lagDateDischarge
-datafile<-datafile %>% tidylog::group_by(chi_number,OriginalAdmissionDate,Readyfordischargedate) %>%
-  tidylog::mutate(query_OverlappingDates = if_else(max(row_number())>1 & Readyfordischargedate<lag(Readyfordischargedate), "Y"," ")) %>%
+#if CHNO=lagchi_number and admission_date=lagadmission_date and date_declared_medically_fit<lagdate_declared_medically_fit and missing lagdischarge_date
+datafile<-datafile %>% tidylog::group_by(chi_number,admission_date,date_declared_medically_fit) %>%
+  tidylog::mutate(query_OverlappingDates = if_else(max(row_number())>1 & date_declared_medically_fit<lag(date_declared_medically_fit), "Y"," ")) %>%
   dplyr::ungroup()
 
 table(datafile$query_OverlappingDates)
 
-#Different RDDs but previous record missing a DateDischarge.
-datafile<-datafile %>% tidylog::group_by(chi_number,OriginalAdmissionDate,Readyfordischargedate) %>%
-  tidylog::mutate(query_OverlappingDates = if_else(chi_number==lag(chi_number) & OriginalAdmissionDate==lag(OriginalAdmissionDate) & 
-                                                     Readyfordischargedate==lag(Readyfordischargedate) & DateDischarge!=lag(DateDischarge),"Y"," ")) %>%
+#Different RDDs but previous record missing a discharge_date.
+datafile<-datafile %>% tidylog::group_by(chi_number,admission_date,date_declared_medically_fit) %>%
+  tidylog::mutate(query_OverlappingDates = if_else(chi_number==lag(chi_number) & admission_date==lag(admission_date) & 
+                                                     date_declared_medically_fit==lag(date_declared_medically_fit) & discharge_date!=lag(discharge_date),"Y"," ")) %>%
   dplyr::ungroup()
 
 table(datafile$query_OverlappingDates)
 
 #Different admission and ready for discharge dates where RDD on second record before RDD on first record
-datafile<-datafile %>% tidylog::group_by(chi_number,DateDischarge,Readyfordischargedate) %>%
-  tidylog::mutate(query_OverlappingDates = if_else(chi_number==lag(chi_number) & Readyfordischargedate<lag(Readyfordischargedate) 
-                                                   | DateDischarge<lag(Readyfordischargedate) | Readyfordischargedate<lag(DateDischarge),"Y"," ")) %>%
+datafile<-datafile %>% tidylog::group_by(chi_number,discharge_date,date_declared_medically_fit) %>%
+  tidylog::mutate(query_OverlappingDates = if_else(chi_number==lag(chi_number) & date_declared_medically_fit<lag(date_declared_medically_fit) 
+                                                   | discharge_date<lag(date_declared_medically_fit) | date_declared_medically_fit<lag(discharge_date),"Y"," ")) %>%
   dplyr::ungroup()
 
 table(datafile$query_OverlappingDates)
@@ -542,9 +542,9 @@ datafile<-datafile %>% tidylog::group_by(chi_number) %>%
 
 table(datafile$query_OverlappingDates)
 
-#sort cases by chi_number OriginalAdmissionDate ReadyforDischargeDate DateDischarge
+#sort cases by chi_number admission_date date_declared_medically_fit discharge_date
 
-datafile<-arrange(datafile,chi_number,OriginalAdmissionDate,Readyfordischargedate,DateDischarge)
+datafile<-arrange(datafile,chi_number,admission_date,date_declared_medically_fit,discharge_date)
 
 #compute Noofpatients=1
 datafile$NoofPatients==1
@@ -558,7 +558,7 @@ write.xlsx(datafile,paste0(filepath,"glasgow_temp.xlsx"))
 
 #Create Error file with row per CHI per ERROR
 
-table(datafile$CENSUSFLAG)
+table(datafile$census_flag)
 
 datafile<-datafile %>% mutate(query=
                     if_else(query_Month=="Y"|query_location=="Y"| query_CHI=="Y"|query_LA=="Y"
@@ -604,10 +604,10 @@ query_list<-datafile %>% filter(datafile$query=="Y")
 
 #Note: No query_HospInBoard, query_DoB or query_Reas2noCode9 queries generated previously so ignored in next command.
 
-query_list2 = subset(query_list, select = c(Monthflag, Census_Date, nhs_board, HealthLocationCode, local_authority_code,
-                                            PatientPostcode, DuplicateCHI, chi_number, date_of_birth, discharge_specialty_nat_code, CENSUSFLAG,
-                                            OriginalAdmissionDate, DateReferralReceived, Readyfordischargedate, DateDischarge,
-                                            DischargeReason, dd_code_1, dd_code_2, Outofareacaseindicator, 
+query_list2 = subset(query_list, select = c(Monthflag, Census_Date, nhs_board, discharge_hospital_nat_code, local_authority_code,
+                                            postcode, DuplicateCHI, chi_number, date_of_birth, discharge_specialty_nat_code, census_flag,
+                                            admission_date, DateReferralReceived, date_declared_medically_fit, discharge_date,
+                                            discharge_to_code, dd_code_1, dd_code_2, Outofareacaseindicator, 
                                             query_Month, query_location, query_CHI, query_LA, query_PCode, 
                                             query_PCodeInvalid, query_sex_code, query_Spec, query_SpecInvalid, 
                                             query_RDD, query_Reas1, query_AdmDate, query_CHI_DOB, query_LocalCode, 
@@ -693,17 +693,17 @@ datafile<-read_sav(paste0(filepath,"glasgow_temp.sav"))
 
 #Create a provsional HB census total - excl. Code 100.
 
-datafile3<-datafile %>% filter(dd_code_1!="100" & (CENSUSFLAG=="Y" | Dischargewithin3daysCensus==1))
+datafile3<-datafile %>% filter(dd_code_1!="100" & (census_flag=="Y" | discharge_within_3_days_census==1))
 
 Census_hb <- datafile3 %>% 
-  group_by(nhs_board, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
+  group_by(nhs_board, discharge_within_3_days_census, reason_group_high_level) %>% 
   summarise(census=n()) %>% 
   ungroup()
  
 #Create a Provisional HB/LA census total - excl Code 100.
 
 Census_la<- datafile3 %>% 
-  group_by(nhs_board, local_authority_code, Dischargewithin3daysCensus, REASONGRP_HIGHLEVEL) %>% 
+  group_by(nhs_board, local_authority_code, discharge_within_3_days_census, reason_group_high_level) %>% 
   summarise(census=n()) %>% 
   ungroup()
 
@@ -713,14 +713,14 @@ datafile$OBDs_intheMonth[is.na(datafile$OBDs_intheMonth)] <- 0 # Need to change 
 
 
 OBDs_HB<-datafile %>% filter(dd_code_1!="100") %>% 
-  group_by(nhs_board, REASONGRP_HIGHLEVEL) %>% 
+  group_by(nhs_board, reason_group_high_level) %>% 
   summarise(OBDs_intheMonth=sum(OBDs_intheMonth)) %>% 
   ungroup()
 
 #Create a provisional HB OBD total - excl. code 100.
 
 OBDs_LA<-datafile %>% filter(dd_code_1!="100") %>% 
-  group_by(nhs_board, local_authority_code, REASONGRP_HIGHLEVEL) %>% 
+  group_by(nhs_board, local_authority_code, reason_group_high_level) %>% 
   summarise(OBDs_intheMonth=sum(OBDs_intheMonth)) %>% 
   ungroup()
 
@@ -730,36 +730,36 @@ OBDs_LA<-datafile %>% filter(dd_code_1!="100") %>%
 Prov<-bind_rows(Census_la,OBDs_HB,OBDs_LA)
 
 
-Prov$REASONGRP_HIGHLEVEL[Prov$REASONGRP_HIGHLEVEL!="Code 9"] <- "HSC/PCF"
+Prov$reason_group_high_level[Prov$reason_group_high_level!="Code 9"] <- "HSC/PCF"
 
 #Rename variable
 
 Prov <- Prov %>% 
-  rename(DelayCategory = REASONGRP_HIGHLEVEL)
+  rename(DelayCategory = reason_group_high_level)
          
 
-# Need to amend the NA in Dischargewithin3daysCensus and census to ensure it works in line 751 - 752.
-Prov$Dischargewithin3daysCensus[is.na(Prov$Dischargewithin3daysCensus)] <- 0
+# Need to amend the NA in discharge_within_3_days_census and census to ensure it works in line 751 - 752.
+Prov$discharge_within_3_days_census[is.na(Prov$discharge_within_3_days_census)] <- 0
 Prov$census[is.na(Prov$census)] <- 0
 
-Prov<-Prov %>% mutate(Dischargewithin3daysCensus=
-                        if_else(Dischargewithin3daysCensus==1,census,Dischargewithin3daysCensus))
+Prov<-Prov %>% mutate(discharge_within_3_days_census=
+                        if_else(discharge_within_3_days_census==1,census,discharge_within_3_days_census))
 
 
-#Now set census value to 0 if there is a value in Dischargewithin3dayscensus column.
+#Now set census value to 0 if there is a value in discharge_within_3_days_census column.
 
 Prov<-Prov %>% mutate(census=
-                        if_else(Dischargewithin3daysCensus>0,0,census))
-#rename census as CensusTotal
+                        if_else(discharge_within_3_days_census>0,0,census))
+#rename census as census_total
 Prov <- Prov %>% 
-  rename(CensusTotal = census)
+  rename(census_total = census)
 
 #aggregate 
 
 ProvCensusOBD<-Prov%>% 
   group_by(nhs_board, local_authority_code, DelayCategory) %>% 
-  summarise(Dischargewithin3daysCensus=sum(Dischargewithin3daysCensus),
-            CensusTotal=sum(CensusTotal),
+  summarise(discharge_within_3_days_census=sum(discharge_within_3_days_census),
+            census_total=sum(census_total),
             OBDs_intheMonth=sum(OBDs_intheMonth,na.rm = TRUE)) %>% 
   ungroup()
 
