@@ -22,40 +22,27 @@
 #   functions (defined here or sourced from another file)
 #   setting plot parameter
 #   specifying codes (e.g. ICD-10 codes)
-# install.packages("haven")
-# install.packages("tidyverse")
-# install.packages("readxl")
-# install.packages("foreign")
-# install.packages("lubridate")
-# install.packages("janitor")
+#bring in environment 
+source("00_setup_environment.R")
 
-library(haven)
-library(tidyverse)
-library(readxl)
-library(foreign)
-library(lubridate)
-library(dplyr)
-library(stringr)
-library(janitor)
-library(purrr)
 
 
 
 ### 1. Read in csv files ----
-a_a <- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/a&a/a&a.csv")
-borders <- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/borders/borders.csv")
-d_g<-read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/d&g/d&g.csv")
-fife <- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/fife/fife.csv")
-fv<- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/fv/fv.csv")
-glasgow<- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/glasgow/glasgow.csv")
-grampian<- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/grampian/grampian.csv")
-highland<- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/highland/highland.csv")
-lanark<- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/lanark/lanark.csv")
-lothian<- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/lothian/lothian.csv")
-orkney<- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/orkney/orkney.csv")
-shetland <- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/shetland/shetland.csv")
-tayside <- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/tayside/tayside.csv")
-wi <- read_csv("/conf/delayed_discharges/RAP development/2019_07/Data/wi/wi.csv")
+a_a <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/a&a/a&a.csv")
+borders <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/borders/borders.csv")
+d_g<-read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/d&g/d&g.csv")
+fife <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/fife/fife.csv")
+fv<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/fv/fv.csv")
+glasgow<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/glasgow/glasgow.csv")
+grampian<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/grampian/grampian.csv")
+highland<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/highland/highland.csv")
+lanark<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/lanark/lanark.csv")
+lothian<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/lothian/lothian.csv")
+orkney<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/orkney/orkney.csv")
+shetland <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/shetland/shetland.csv")
+tayside <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/tayside/tayside.csv")
+wi <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/wi/wi.csv")
 
 
 ### 2. Ensure that Local Authority Code is saved as a character ( this causes issues later if not done!) ----
@@ -168,7 +155,7 @@ table(Scotland_allboards$nhs_board)
 
 ### 9. Save out file as csv and also as a sav file  ----
 
-write_csv(Scotland_allboards,"//conf/delayed_discharges/RAP development/2019_07/Outputs/Allboards_R_.csv")
+write.csv(Scotland_allboards,"//conf/delayed_discharges/RAP development/2019_07/Outputs/Allboards_R_.csv")
 write_sav(Scotland_allboards,"//conf/delayed_discharges/RAP development/2019_07/Outputs/Allboards_R.sav")
 
 ###############################################################################################################
