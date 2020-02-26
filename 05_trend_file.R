@@ -66,10 +66,11 @@ trend_file <- readr::read_csv(paste0(filepath, prev_census_date, "_trend_file_",
                      discharge_to_code == "Death" ~ "4",
                      discharge_to_code == "Not Fit For Discharge" ~ "5")))
 
-trend_file_2 <- bind_rows(datafile, trend_file) %>%
-  arrange(cen_num, chi_number) #%>%
-  readr::write_csv(paste0(filepath, census_date, "trend_file_", 
-                          initial_month, "_", current_month))
+trend_file <- bind_rows(datafile, trend_file) %>%
+  arrange(cen_num, chi_number)
+
+readr::write_csv(trend_file, paste0(filepath, census_date, "_trend_file_", 
+                          initial_month, "_", current_month, ".csv"))
 ### 3.Checks ----
 
 monthflag_cennum_patients <- updated_trend %>% 
