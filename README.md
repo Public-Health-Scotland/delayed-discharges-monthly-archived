@@ -25,13 +25,23 @@ These folders also contain up-to-date copies of the repository and these are the
 #### Files
 * **.gitignore:** Any files that should not be tracked by git should be added to this file. 
 * **00_setup_environment.R:** This script is edited each month to update dates.
-* **01_validation.R:** This script checks a healthboard's submitted data and produces provisional census and bad day figures.
-* **02_read_in_and_combine_files.R:** This script reads in all healthboards validated data submissions and combines them to a single file.
-* **03_scotland_file_processing.R:** This script is an extended version of the validation script and creates the dataset for producing outputs. 
-* **04_census_and_bed_days:** This script creates outputs for each of the published spreadsheet tabs.
-* **05_trend_file:** This script appends the newly created monthly data to the previous trend file .
+* **01_validation.R:** This script checks each health board data submission and recodes and formats date variables, removes non-hospital locations and induvuduals aged under 18. Variables such as reason grouping, census flag and occupied bed days are derived. It requires the specialty lookup file to match on specialty description. The script outputs data query files which are fed back to health boards. The script also produces provisional census and bed day figures. This script is intended to be run more than once following resolution of queries by health boards.
+* **02_read_in_and_combine_files.R:** This script reads in all health board validated data submissions and combines them to a single file.
+* **03_scotland_file_processing.R:** This script recodes, formats and derives data variables (similar to the validation script). It required the national reference file location lookup file to match on location description, the specialty lookup file to match on specialty description and postcode directory lookup file to match on geography data. The script outputs a validated Scotland file.
+* **04_census_and_bed_days.R:** This script creates all outputs required for the monthly publication spreadsheets for census and bed days. Data files are output for each of the different tabs required within the spreadsheets.
+* **05_trend_file.R:** This script appends the latest monthly validated Scotland file to the previous trend file. The script outputs an updated trend file.
 
-## Running the publication 
+## Running the publication
+
+### Running the code
+
+*	In the master folder, open up x.R, highlight the entire script and run
+*	Check for any errors and investigate if necessary
+*	Check the output in data/output looks as it should
+*	In the master folder, open up y.R, highlight the entire script and run
+*	As above, check for any errors and look at the output to see if it looks as it should do
+
+The raw output files all have the publication date in the name, so there is no need to archive as each time the process is re-run, new files will be created. The only files which do get overwritten are the publication document files, but these are copied over to the publication folder as part of the normal publication process so are already archived. 
 
 ### Updating the code
 
@@ -45,14 +55,3 @@ To update the publication each month, the analyst responsible for updating the s
 * Create pull request for another analyst to review changes
 * Once changes have been approved, merge the branch into the master and delete
 * If no more changes are required, pull the updated master branch into the **master folder**
-
-### Running the code
-
-* In the master folder, open up `x.R`, highlight the entire script and run
-* Check for any errors and investigate if necessary
-* Check the output in data/output looks as it should
-* In the master folder, open up `y.R`, highlight the entire script and run
-* As above, check for any errors and look at the output to see if it looks as it should do
-
-
-The raw output files (csv datafiles, basefiles) all have the publication date in the name, so there is no need to archive as each time the process is re-run, new files will be created. The only files which do get overwritten are the publication document files, but these are copied over to the publication folder as part of the normal publication process so are already archived.
