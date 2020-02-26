@@ -37,31 +37,36 @@ datafile <- datafile %>%
     ready_for_discharge_day = toupper(wday(ready_for_discharge_date, 
                                            label = TRUE, abbr = TRUE)),
     discharge_day = toupper(wday(ready_for_discharge_date, label = TRUE, 
-                                 abbr = TRUE)))
+                                 abbr = TRUE)),
+    census_date = census_date,
+    age_grp = if_else(age_at_rdd < 75, "18-74",
+              if_else(age_at_rdd >= 75, "75+", " "))) %>%
+  dplyr::select(-x1, -date_declared_medically_fit, -age_rdd_missing, -census_date_plus_3_working_days, -drmd_in_month, -date_discharge_in_month, -week, -month, -duplicate_CHI, -error_Duplicate_CHI_Census)
 
 ### 2.Add latest monthly file to current trend file ----
 
 # Add files together to update trend file
 trend_file <- readr::read_csv(paste0(filepath, prev_census_date, "_trend_file_", 
-                              initial_month, "_", previous_month, ".csv")) %>%
+                                initial_month, "_", previous_month, ".csv")) %>%
   mutate(chi_number = toString(chi_number),
-         census_date = lubridate::parse_date_time(census_date, c('dmy')),
-         date_of_birth = lubridate::parse_date_time(date_of_birth, c('dmy')),
-         admission_date = lubridate::parse_date_time(admission_date, c('dmy')),
-         date_referred_for_sw_assessment = lubridate::parse_date_time(date_referred_for_sw_assessment, c('dmy')),
-         ready_for_discharge_date = lubridate::parse_date_time(ready_for_discharge_date, c('dmy')),
-         discharge_date = lubridate::parse_date_time(discharge_date, c('dmy')))
+         census_date = as.Date(census_date, "%d/%m/%y"),
+         date_of_birth = as.Date(date_of_birth, "%d/%m/%y"),
+         admission_date = as.Date(admission_date, "%d/%m/%y"),
+         date_referred_for_sw_assessment = 
+           as.Date(date_referred_for_sw_assessment, "%d/%m/%y"),
+         ready_for_discharge_date = 
+           as.Date(ready_for_discharge_date, "%d/%m/%y"),
+         discharge_date = as.Date(discharge_date, "%d/%m/%y"),
+         # Change discharge reason from text to code
+         discharge_to_code = as.numeric(
+           case_when(discharge_to_code == "Placement" ~ "1",
+                     discharge_to_code == "Continuing Care NHS (MEL)" ~ "1",
+                     discharge_to_code == "Discharge Home with Home Care" ~ "2",
+                     discharge_to_code == "Discharge Home" ~ "3",
+                     discharge_to_code == "Death" ~ "4",
+                     discharge_to_code == "Not Fit For Discharge" ~ "5")))
 
-trend_file <- trend_file %>%
-  bind_rows(datafile, trend_file) %>%
-  # Change discharge reason from text to code
-  mutate(discharge_reason =
-           case_when(discharge_reason == "Placement" ~ "1",
-           discharge_reason == "Continuing Care NHS (MEL)" ~ "1",
-           discharge_reason == "Discharge Home with Home Care" ~ "2",
-           discharge_reason == "Discharge Home" ~ "3",
-           discharge_reason == "Death" ~ "4",
-           discharge_reason == "Not Fit For Discharge" ~ "5")) %>%
+trend_file_2 <- bind_rows(datafile, trend_file) %>%
   arrange(cen_num, chi_number) #%>%
   readr::write_csv(paste0(filepath, census_date, "trend_file_", 
                           initial_month, "_", current_month))
