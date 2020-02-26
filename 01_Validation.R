@@ -391,16 +391,28 @@ datafile<-datafile %>%  mutate(query_code_2_invalid=
 table(datafile$dd_code_1)
 table(datafile$dd_code_2)
 #Flag Local Codes
+# datafile<-datafile %>%  mutate(query_local_delay_code=
+#                                  if_else(dd_code_1 %!in% c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
+#                                                            "25A","25D","25E","25F","43","51","52","61","67","71","72","73",
+#                                                            "74","44"," ","9","09","41","100") &
+#                                      (!is.na(dd_code_2) & 
+#                                         (dd_code_2 %!in% c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
+#                                                                          "25A","25D","25E","25F","43","51","52","61","67","71","72","73",
+#                                                                          "74","44"," ","9","09","41","100","24DX", "24EX","25X","51X","71X",
+#                                                                          "26X","46X"))),
+#                                    "Y"," "))
+
 datafile<-datafile %>%  mutate(query_local_delay_code=
                                  if_else(dd_code_1 %!in% c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
                                                            "25A","25D","25E","25F","43","51","52","61","67","71","72","73",
-                                                           "74","44"," ","9","09","41","100") &
-                                     (!is.na(dd_code_2) & 
-                                        (dd_code_2 %!in% c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
-                                                                         "25A","25D","25E","25F","43","51","52","61","67","71","72","73",
-                                                                         "74","44"," ","9","09","41","100","24DX", "24EX","25X","51X","71X",
-                                                                         "26X","46X"))),
-                                   "Y"," "))
+                                                           "74","44"," ","9","09","41","100"),"Y"," "))
+
+datafile<-datafile %>%  mutate(query_local_delay_code=
+                                 if_else((!is.na(dd_code_2) & 
+                                              !(dd_code_2 %in% c("11A","11B","23C","24A","24B","24C","24D","24E","24F","27A",
+                                                                 "25A","25D","25E","25F","43","51","52","61","67","71","72","73",
+                                                                 "74","44","","9","09","41","100","24DX", "24EX","25X","51X","71X",
+                                                                 "26X","46X"))),"Y"," "))
 
 
 table(datafile$query_local_delay_code)
@@ -453,6 +465,13 @@ datafile<-datafile %>%  mutate(query_disch_date_lt_adm_date=
 
 datafile<-datafile %>%  mutate(query_obds_ltequal_to_zero=
                                  if_else(census_flag=="Y" & obds_in_month<=0,"Y"," "))
+
+#query Hospital Code if not H in position 5
+
+datafile<-datafile %>%  mutate(query_hospital_code=
+                                 if_else(substr(datafile$discharge_hospital_nat_code,5,5)!="H","Y"," "))
+
+table(datafile$query_hospital_code)
 
 # check for duplicate chi_number and flag
 
@@ -567,7 +586,7 @@ datafile<-datafile %>% mutate(query=
                             | query_specialty_code_invalid=="Y"| query_ready_for_medical_discharge=="Y"|query_dd_code_1=="Y"| query_admission_date=="Y"| query_chi_dob=="Y"
                             | query_local_delay_code=="Y"| query_discontinued_code=="Y"| query_code_1_ends_in_x=="Y"| query_code_2_invalid=="Y"
                             | query_ready_for_medical_discharge_lt_adm_date=="Y"| query_discharge_date_lt_rdd=="Y"| query_disch_date_lt_adm_date=="Y"|query_missing_disch_reas=="Y"| query_missing_disch_date=="Y"
-                            | query_disch_reas_invalid=="Y"| query_overlapping_dates=="Y"| query_duplicate_chi_census=="Y"| query_obds_ltequal_to_zero=="Y"
+                            | query_disch_reas_invalid=="Y"| query_hospital_code=="Y"| query_overlapping_dates=="Y"| query_duplicate_chi_census=="Y"| query_obds_ltequal_to_zero=="Y"
                             | query_missing_date_ref_rec_for_11A=="Y","Y"," "))
 #Checks on query file
 table(datafile$query)  #448 - must be all of the query_local_delay_code
@@ -584,7 +603,7 @@ table(datafile$query_ready_for_medical_discharge) #None
 table(datafile$query_dd_code_1) # None
 table(datafile$query_admission_date) # None
 table(datafile$query_chi_dob) # None
-table(datafile$query_local_delay_code) # 448 - Check
+table(datafile$query_local_delay_code) # None
 table(datafile$query_discontinued_code) # None
 table(datafile$query_code_1_ends_in_x)  # None
 table(datafile$query_code_2_invalid)
@@ -598,17 +617,18 @@ table(datafile$query_duplicate_chi_census) # 0 Check
 table(datafile$query_obds_ltequal_to_zero) # None
 table(datafile$query_missing_date_ref_rec_for_11A) # None
 table(datafile$query_missing_disch_date) # None
-table(datafile$query_missing_disch_reas) # check 182
+table(datafile$query_missing_disch_reas) # None
+table(datafile$query_hospital_code)# to be checked
 
 #select if query is showing  - May not need this as it selects out all rows
 query_list<-datafile %>% filter(datafile$query=="Y")
 
 #Note: No query_HospInBoard, query_DoB or query_Reas2noCode9 queries generated previously so ignored in next command.
 
-query_list2 = subset(query_list, select = c(Monthflag, census_date, nhs_board, discharge_hospital_nat_code, local_authority_code,
+query_list2 <- subset(query_list, select = c(monthflag, nhs_board, discharge_hospital_nat_code, local_authority_code,
                                             postcode, duplicate_chi, chi_number, date_of_birth, discharge_specialty_nat_code, census_flag,
                                             admission_date, date_referred_for_sw_assessment, date_declared_medically_fit, discharge_date,
-                                            discharge_to_code, dd_code_1, dd_code_2, Outofareacaseindicator, 
+                                            discharge_to_code, dd_code_1, dd_code_2, out_of_area_case_indicator, 
                                             query_month, query_location, query_chi, query_local_authority_code, query_postcode, 
                                             query_postcode_invalid, query_sex_code, query_specialty_code, query_specialty_code_invalid, 
                                             query_ready_for_medical_discharge, query_dd_code_1, query_admission_date, query_chi_dob, query_local_delay_code, 
@@ -630,7 +650,7 @@ grep("query_chi_dob", colnames(datafile))
 grep("query_overlapping_dates", colnames(datafile))
 
 #recoding these queries with a 1 where there is a "Y" to enable aggregation later
-datafile[ ,34:64][datafile[ , 34:64] == "Y"] <- as.numeric(1)
+datafile[ ,33:64][datafile[ , 33:64] == "Y"] <- as.numeric(1)
 
 datafile<-datafile %>% mutate(query_dd_code_1=as.numeric(query_dd_code_1))
 datafile<-datafile %>% mutate(query_admission_date=as.numeric(query_admission_date))
@@ -643,7 +663,7 @@ typeof(datafile$query_dd_code_1)
 #aggregate file
 table(datafile$query_dd_code_1)
 datafile2 <- datafile %>% 
-  group_by(nhs_board, Monthflag) %>% 
+  group_by(nhs_board, monthflag) %>% 
   summarise(query_month = sum(as.numeric(query_month)),
             query_location=sum(as.numeric(query_location)),
             query_chi=sum(as.numeric(query_chi)),
@@ -668,6 +688,7 @@ datafile2 <- datafile %>%
             query_missing_disch_date=sum(as.numeric(query_missing_disch_date)),
             query_disch_reas_invalid=sum(as.numeric(query_disch_reas_invalid)),
             query_overlapping_dates=sum(as.numeric(query_overlapping_dates)),
+            query_hospital_code=sum(as.numeric(query_hospital_code)),
             query_duplicate_chi_census=sum(as.numeric(query_duplicate_chi_census)),
             query_obds_ltequal_to_zero=sum(as.numeric(query_obds_ltequal_to_zero)),
             query_missing_date_ref_rec_for_11A=sum(as.numeric(query_missing_date_ref_rec_for_11A)))%>%
