@@ -17,30 +17,18 @@
 
 ### 1 - Load packages ----
 library(magrittr)     # For the %<>% functionality
-library(readxl)
 library(here)         # For the here() function
 library(dplyr)        # For data manipulation in the "tidy" way
 library(tidyr)        # For data manipulation in the "tidy" way
 library(haven)        # For reading in SPSS files
 library(lubridate)    # For dates
 library(stringr)      # For string manipulation and matching
-library(openxlsx)     # For manipulating Excel files
 library(janitor)      # For 'cleaning' variable names
-library(devtools)     # Used to install phimethods from GitHub
+library(phsmethods)   # For postcode tidying
 
-# Check the following  are needed
-library(stringi)      # Where is this package used?
-library(xlsx)         # used for write.xlsx. Use openxlsx::saveWorkbook once 
-                      # templates are created?
-
-devtools::install_github("Health-SocialCare-Scotland/phsmethods")
-
-options(stringsAsFactors = FALSE)
 
 ### 2 - Define Whether Running on Server or Locally ----
-# Covers both the old server and the pro one
-if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)",
-                                  "x86_64-pc-linux-gnu (64-bit)")) {
+if (sessionInfo()$platform == "x86_64-redhat-linux-gnu (64-bit)") {
   platform <- "server"
 } else {
   platform <- "locally"
