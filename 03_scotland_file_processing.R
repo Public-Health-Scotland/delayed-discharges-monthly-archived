@@ -144,13 +144,11 @@ datafile <- datafile %>%
 # Note that floor() rounds down to nearest integer to prevent 46.5 years giving
 # age as 47
 datafile <- datafile %>%
-  mutate(age_at_rdd = lubridate::interval(date_of_birth, date_declared_medically_fit),
-         age_at_rdd = floor(time_length(age_at_rdd, unit = "year")),
-         # Check no missing values for age_at_rdd - all should be false.
-         age_rdd_missing = is.na(age_at_rdd))
+  mutate(age_at_rdd = floor(time_length(interval(date_of_birth, 
+                                        date_declared_medically_fit), "year"))) %>%
+         # Ensure ages 18+ only
+         filter(age_at_rdd >= 18)
 
-# Ensure ages 18+ only
-#unique(datafile$age_at_rdd)
 
 # Keep only hospital locations (i.e. codes ending in H plus carehome in Grampian
 #with NHS staffed beds)
@@ -159,24 +157,16 @@ datafile <- datafile %>%
          | location == "N465R") %>%
   
   # ZERO DELAYS
-  # 1. Identify any records where Ready for Discharge Date = Discharge Date as 
+  # 1. Remove any records where Ready for Discharge Date = Discharge Date as 
   # not delays. 
-  mutate(RDD_same_as_DD = ifelse(!is.na(discharge_date) & 
-                                 !is.na(date_declared_medically_fit),
-                               difftime(discharge_date, 
-                                        date_declared_medically_fit, 
-                                        units="days") == 0, FALSE)) %>%
-  # Remove zero delays & delete variable
-  filter(RDD_same_as_DD == FALSE) %>%
-  select(-RDD_same_as_DD) %>%
+  filter(ready_for_discharge_date != discharge_date) %>%
 
   #2. Remove any records where Ready for Discharge Date = Last Day of Month
   # (last_dom) - these do not become delays until the 1st of the following month.
-  mutate(RDD_same_as_last_dom = ifelse(!is.na(date_declared_medically_fit),
-                                       date_declared_medically_fit == last_dom, 
-                                       FALSE)) %>%
-  filter(RDD_same_as_last_dom == FALSE) %>%
-  select(-RDD_same_as_last_dom)
+  filter(ready_for_discharge_date != last_dom) %>%
+
+  #3. Remove any records where patient has not been declared ready for discharge
+  filter(is.na(date_declared_medically_fit))
 
 ### 4.Derivations ----
 
@@ -275,13 +265,18 @@ datafile <- datafile %>%
     ~ "Adults with Incapacity Act",
     dd_code_1 == "9" & dd_code_2 == "71X" 
     ~ "Patient exercising statutory right of choice – interim placement is not possible or reasonable"),
+
   # Create census flag
 ################################################################################
 # Is this handling missing dates correctly? Code to "No"???
-  census_flag = case_when(is.na(date_declared_medically_fit) ~ "0",
-                          is.na(discharge_date) & date_declared_medically_fit < 
-                          census_date & ((is.na(dd_code_2) | dd_code_2 != "26X" 
-                                          | dd_code_2 != "46X")) ~ "1",
+  census_flag = case_when(
+                        # Not discharged and delayed at census
+                        is.na(date_declared_medically_fit) ~ "0",
+                        is.na(discharge_date) & date_declared_medically_fit < 
+                        census_date & ((is.na(dd_code_2) | dd_code_2 != "26X" 
+                                        | dd_code_2 != "46X")) ~ "1",
+                          
+                        # Discharged after census
                         !is.na(discharge_date) & discharge_date >= census_date & 
                           date_declared_medically_fit < census_date & 
                           ((is.na(dd_code_2) | dd_code_2 != "26X" | 
@@ -289,38 +284,13 @@ datafile <- datafile %>%
                         !is.na(discharge_date) & discharge_date <= census_date & 
                           ((is.na(dd_code_2) | dd_code_2 != "26X" |
                               dd_code_2 != "46X")) ~ "0",
-                        !is.na(discharge_date) & discharge_date == 
-                          date_declared_medically_fit & ((is.na(dd_code_2) | 
-                                dd_code_2 != "26X" | dd_code_2 != "46X")) ~ "0",
                         !is.na(discharge_date) & discharge_date >= census_date & 
                           ((is.na(dd_code_2) | dd_code_2 != "26X" | 
                               dd_code_2 != "46X")) 
                         ~ "0",
+                        
+                        # Everything else
                         TRUE ~ "0"),
-         
-         # Flag those discharged up to 3 working days after census 
-         # (NOTE census is always last THURS of month).
-         
-         # 1 Identify Census Date + 3 working days:
-         census_date_plus_3_working_days = census_date + days(5),
-         
-################################################################################
-#Is this handling NAs correctly?
-# 2 Flag those with a discharge date le census_date_plus_3_working_days 
-         # and check against BO variable CENSUSDISCHARGEWITHIN3WORKINGDAYS.
-         discharge_within_3_days_census =
-           case_when(is.na(discharge_date) ~ 0,
-                     census_flag == "1" & 
-                       discharge_date < census_date_plus_3_working_days & 
-                       dd_code_1 != "100" &
-                       (is.na(dd_code_2) | (dd_code_2 != "26X" & 
-                                            dd_code_2 != "46X")) ~ 1, TRUE ~ 0),
-
-         # Check - should be zero cases returned.
-         # census_flagcheck <- filter(datafile, discharge_within_3_days_census = 1 & census_flag == "")
-         
-         # count(census_flagcheck, chi_number, census_flag) %>%
-         #   spread(census_flag, n)
          
          # Flag whether date_declared_medically_fit in current month
          drmd_in_month = case_when(
@@ -375,7 +345,7 @@ datafile <- datafile %>%
                                        census_flag == "0" ~ 0),
          # Create delay length group & counts
          week = 7,
-         month = 30.4375,
+         month = 365.25/12,
          delay_length_group = case_when(delay_at_census >= 1 & delay_at_census <= 3
                                        ~ "1-3 days",
                                       delay_at_census > 3 & delay_at_census <= 14
