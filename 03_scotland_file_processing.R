@@ -26,35 +26,21 @@ source("00_setup_environment.R")
 datafile <- readr::read_csv(paste0(filepath,"Allboards_R.csv")) %>%
   janitor::clean_names()
 
-# Create variable with first / last day of month value (defined above).
-# datafile <- datafile %>%
-#   mutate(first_dom = first_dom,
-#          last_dom = last_dom)
-
-
 # Format variables and recode
 datafile <- datafile %>%
   dplyr::rename(location = discharge_hospital_nat_code,
                 spec_code = discharge_specialty_nat_code) %>%
   #CHI NUMBER - Remove leading / trailing spaces & add leading 0 if missing.
   mutate(chi_number = trimws(chi_number),
-         chi_number = str_pad(chi_number, width = 10, pad = "0", 
-                              side = "left"),
+         chi_number = str_pad(chi_number, width = 10, pad = "0", side = "left"),
          #Format dates
-         # replace missing dates with NA 
-# discharge_date = dplyr::na_if(discharge_date, ""),
-#                    date_declared_medically_fit = 
-#                    dplyr::na_if(date_declared_medically_fit, ""),
          mutate_at(vars(contains("date"), dmy)),
 # SPSS syntax used to use 2 variables to calculate OBDs in the month based on 
 # full length of delay, not from latest RDD (RDD2)- no longer needed?
-         ready_for_discharge_date = date_declared_medically_fit,
-         admission_date = lubridate::dmy(admission_date),
-         discharge_date = lubridate::dmy(discharge_date),
-         # "All formats failed to parse. No formats found." error - special character 
-         # in data causing to fail?
-         #   date_declared_medically_fit = lubridate::dmy(date_declared_medically_fit),
-         date_declared_medically_fit = as.Date(date_declared_medically_fit, "%d/%m/%y"),
+         ready_for_discharge_date = date_declared_medically_fit)
+
+################################################################################
+         # This is done later in Peter's script? Remove????
          # Recode discharge reason:
          # discharge_to_code = case_when(discharge_to_code == "01" ~ "1",
          #                                discharge_to_code == "02" ~ "2",
@@ -64,17 +50,16 @@ datafile <- datafile %>%
          #                                discharge_to_code == "06" ~ "6",
          #                                discharge_to_code == "07" ~ "7",
          #                               FALSE ~ discharge_to_code))
-         # Recode out of area:
-         out_of_area_case_indicator = case_when(
-                                      is.na(out_of_area_case_indicator) ~ "N",
-                                      out_of_area_case_indicator == "Yes" ~ "Y",
-                                      out_of_area_case_indicator == "No" ~ "N",
-                                      out_of_area_case_indicator == "no" ~ "N"),
-         # Recode sex 
-         sex_code = case_when(sex_code == "1" ~ "Male",
-                              sex_code == "M" ~ "Male",
-                              sex_code == "2" ~ "Female",
-                              sex_code == "F" ~ "Female",
+datafile <- datafile %>%
+  # Recode out of area:
+  mutate(out_of_area_case_indicator = case_when(
+                                      is.na(out_of_area_case_indicator) ~ "0",
+                                      out_of_area_case_indicator == "Yes" ~ "1",
+                                      out_of_area_case_indicator == "No" ~ "0",
+                                      out_of_area_case_indicator == "no" ~ "0"),
+         # Recode sex
+         sex_code = case_when(sex_code %in% c("1", "M") ~ "Male",
+                              sex_code %in% c("2", "F") ~ "Male",
                               # If Gender is blank check CHINo 9th charcter 
                               # (1, 3, 5, 7, 9 = Male, 0, 2, 4, 6 , 8 = female)
                               sex_code != "" ~ sex_code,
@@ -83,34 +68,29 @@ datafile <- datafile %>%
                               substr(chi_number,9,9) %in% c("0","2","4","6","8")
                               ~ "Female",
                               TRUE ~ "Unknown"),
-
          # Recode delay reason
          # Set blank codes to 11A
-         dd_code_1 = case_when(is.na(dd_code_1) ~ NA_character_,
-                                is.na(dd_code_2) & dd_code_1 == " " ~ "11A",
-                                # recode code 9's
-                                dd_code_1 == "09" ~ "9", 
-                                TRUE ~ dd_code_1),
-         # reason code variables to upper case
-         dd_code_1 = case_when(is.na(dd_code_1) ~ NA_character_,
-                               TRUE ~ toupper(dd_code_1)),
-         dd_code_2 = case_when(is.na(dd_code_2) ~ NA_character_,
-                                TRUE ~ toupper(dd_code_2)),
-         # recode old delay reasons
-         dd_code_1 = case_when(is.na(dd_code_1) ~ NA_character_,
+         dd_code_1 = case_when(is.na(dd_code_2) & dd_code_1 == " " ~ "11A",
+                               # recode code 9's
+                               dd_code_1 == "09" ~ "9",
                                dd_code_1 == "41" ~ "25E",
+                               # recode old delay reasons
                                dd_code_1 == "41A" ~ "23C",
                                dd_code_1 == "41B" ~ "23D",
                                dd_code_1 == "43" ~ "24A",
 ################################################################################
-# Is the "." a typo??????????????
+                               # Is the "." a typo??????????????
                                dd_code_1 == "27A." ~ "27",
                                dd_code_1 == "62" ~ "67",
-                               dd_code_1 == "63" ~ "67",
+                               dd_code_1 == "63" ~ "67"
                                TRUE ~ dd_code_1),
-         
+         # reason code variables to upper case
+         dd_code_1 = case_when(TRUE ~ toupper(dd_code_1)),
+         dd_code_2 = case_when(TRUE ~ toupper(dd_code_2)))
+    
+datafile <- datafile %>%         
   # Format postcode variable into pc7
-  postcode = phimethods::postcode(postcode, format = "pc7"),
+  mutate(postcode = phsmethods::postcode(postcode, format = "pc7"),
   
   # Recode LA
   local_authority_code = case_when(
@@ -298,25 +278,25 @@ datafile <- datafile %>%
   # Create census flag
 ################################################################################
 # Is this handling missing dates correctly? Code to "No"???
-  census_flag = case_when(is.na(date_declared_medically_fit) ~ "N",
+  census_flag = case_when(is.na(date_declared_medically_fit) ~ "0",
                           is.na(discharge_date) & date_declared_medically_fit < 
                           census_date & ((is.na(dd_code_2) | dd_code_2 != "26X" 
-                                          | dd_code_2 != "46X")) ~ "Y",
+                                          | dd_code_2 != "46X")) ~ "1",
                         !is.na(discharge_date) & discharge_date >= census_date & 
                           date_declared_medically_fit < census_date & 
                           ((is.na(dd_code_2) | dd_code_2 != "26X" | 
-                              dd_code_2 != "46X")) ~ "Y",
+                              dd_code_2 != "46X")) ~ "1",
                         !is.na(discharge_date) & discharge_date <= census_date & 
                           ((is.na(dd_code_2) | dd_code_2 != "26X" |
-                              dd_code_2 != "46X")) ~ "N",
+                              dd_code_2 != "46X")) ~ "0",
                         !is.na(discharge_date) & discharge_date == 
                           date_declared_medically_fit & ((is.na(dd_code_2) | 
-                                dd_code_2 != "26X" | dd_code_2 != "46X")) ~ "N",
+                                dd_code_2 != "26X" | dd_code_2 != "46X")) ~ "0",
                         !is.na(discharge_date) & discharge_date >= census_date & 
                           ((is.na(dd_code_2) | dd_code_2 != "26X" | 
                               dd_code_2 != "46X")) 
-                        ~ "N",
-                        TRUE ~ "N"),
+                        ~ "0",
+                        TRUE ~ "0"),
          
          # Flag those discharged up to 3 working days after census 
          # (NOTE census is always last THURS of month).
@@ -330,7 +310,7 @@ datafile <- datafile %>%
          # and check against BO variable CENSUSDISCHARGEWITHIN3WORKINGDAYS.
          discharge_within_3_days_census =
            case_when(is.na(discharge_date) ~ 0,
-                     census_flag == "Y" & 
+                     census_flag == "1" & 
                        discharge_date < census_date_plus_3_working_days & 
                        dd_code_1 != "100" &
                        (is.na(dd_code_2) | (dd_code_2 != "26X" & 
@@ -345,14 +325,14 @@ datafile <- datafile %>%
          # Flag whether date_declared_medically_fit in current month
          drmd_in_month = case_when(
            date_declared_medically_fit >= first_dom & 
-             date_declared_medically_fit <= last_dom ~ "Y",
-           TRUE ~ "N"),
+             date_declared_medically_fit <= last_dom ~ "1",
+           TRUE ~ "0"),
          
          # Flag whether discharge date in current month
          date_discharge_in_month = case_when(
            discharge_date >= first_dom & 
-             discharge_date <= last_dom ~ "Y",
-           TRUE ~ "N"),
+             discharge_date <= last_dom ~ "1",
+           TRUE ~ "0"),
          
          # Now there are 2 variables which will make it easier to calculate OBDs
          # in the month.
@@ -372,27 +352,27 @@ datafile <- datafile %>%
          # computations below ADD 1 to records where DRMD is not in current 
          # month.  DC 040816.
          obds_in_month = case_when(
-           drmd_in_month == "Y" & date_discharge_in_month == "Y" ~
+           drmd_in_month == "1" & date_discharge_in_month == "1" ~
              lubridate::time_length(
                lubridate::interval(date_declared_medically_fit, discharge_date),
                "days"),
-           drmd_in_month == "N" & date_discharge_in_month == "Y" ~
+           drmd_in_month == "0" & date_discharge_in_month == "1" ~
              lubridate::time_length(lubridate::interval(first_dom, 
                                                       discharge_date), "days") + 1,
-           drmd_in_month == "Y" & date_discharge_in_month == "N" ~
+           drmd_in_month == "1" & date_discharge_in_month == "0" ~
              lubridate::time_length(
                lubridate::interval(date_declared_medically_fit, last_dom), 
                "days"),
-           drmd_in_month == "N" & date_discharge_in_month == "N" ~ 
+           drmd_in_month == "0" & date_discharge_in_month == "0" ~ 
              lubridate::time_length(lubridate::interval(first_dom, last_dom), "days") + 1
            ),
          
          # LENGTH OF DELAY AT CENSUS POINT.
-         delay_at_census = case_when(census_flag == "Y" & 
+         delay_at_census = case_when(census_flag == "1" & 
                                        date_declared_medically_fit < census_date 
                   ~ lubridate::time_length(interval(date_declared_medically_fit, 
                                                     census_date), "days"),
-                                       census_flag == "N" ~ 0),
+                                       census_flag == "0" ~ 0),
          # Create delay length group & counts
          week = 7,
          month = 30.4375,
@@ -446,21 +426,21 @@ datafile <- datafile %>%
   #Check for duplicate CHI numbers and flag.
   dplyr::arrange(chi_number) %>%
   tidylog::group_by(chi_number) %>%
-    mutate(duplicate_CHI = if_else(max(dplyr::row_number()) > 1, "Y","N")) %>%
+    mutate(duplicate_CHI = if_else(max(dplyr::row_number()) > 1, "1","0")) %>%
     dplyr::ungroup() %>%
 
   # Need to capture paired records with errors to investigate reason for 
   # duplicate - so update Error code for both
   dplyr::arrange(chi_number, desc(duplicate_CHI)) %>%
   tidylog::group_by(chi_number) %>%
-    mutate(duplicate_CHI = if_else(max(row_number()) > 1, "Y", "N")) %>%
+    mutate(duplicate_CHI = if_else(max(row_number()) > 1, "1", "0")) %>%
   dplyr::ungroup() %>%
 
   # Check for duplicate CENSUS records and flag
   dplyr::arrange(chi_number, desc(census_flag)) %>%
   tidylog::group_by(chi_number, census_flag) %>%
     mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & 
-                                                census_flag == "Y", "Y", "N")) %>%
+                                                census_flag == "1", "1", "0")) %>%
   dplyr::ungroup() %>%
 
   # Need to capture paired records with errors to investigate reason for 
@@ -468,7 +448,7 @@ datafile <- datafile %>%
   dplyr::arrange(chi_number, desc(error_Duplicate_CHI_Census)) %>%
   tidylog::group_by(chi_number, census_flag) %>%
     mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & 
-                                                  census_flag == "Y", 
+                                                  census_flag == "1", 
                   lag(error_Duplicate_CHI_Census), error_Duplicate_CHI_Census)) %>%
   dplyr::ungroup() #%>%
     # DELAY LOCATION (acute, gpled, notgpled) while spec still in data.
