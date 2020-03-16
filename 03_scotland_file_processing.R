@@ -15,20 +15,9 @@
 # Approximate run time: TBC
 ##########################################################
 
-# Original SPSS script: \\Isdsf00d03\delayed_discharges\RAP development\SPSS syntax\1-Scotland file Processing.sps
 
 ### 1.Housekeeping ----
 source("00_setup_environment.R")
-
-# Manual steps:
-
-# Before reading data in, need to copy from EACH board's BO report 
-# (FULL DATA DOWNLOAD tab) and past into a new workbook then save as csv.
-# NB: any changes to BO report mean that variable list below will need updated
-
-# BEFORE READING IN CSV FILE, OPEN IN EXCEL, DO FIND&REPLACE: COMMA WITH SPACE
-# This will remove any commas in specialty description 
-# - eg Ear, Nose & Throat - which will cause problems once file read in
 
 
 ### 2.Get Scotland_validated file for latest month ----
@@ -45,22 +34,18 @@ datafile <- readr::read_csv(paste0(filepath,"Allboards_R.csv")) %>%
 
 # Format variables and recode
 datafile <- datafile %>%
-  #CHI NUMBER - Remove leading / trailing spaces & add leading 0 if missing.
   dplyr::rename(location = discharge_hospital_nat_code,
                 spec_code = discharge_specialty_nat_code) %>%
+  #CHI NUMBER - Remove leading / trailing spaces & add leading 0 if missing.
   mutate(chi_number = trimws(chi_number),
-         chi_number = ifelse(nchar(chi_number) == 9, paste0("0", chi_number), 
-                              chi_number),
+         chi_number = str_pad(chi_number, width = 10, pad = "0", 
+                              side = "left"),
          #Format dates
          # replace missing dates with NA 
-         discharge_date = dplyr::na_if(discharge_date, ""),
-                            date_declared_medically_fit = 
-                            dplyr::na_if(date_declared_medically_fit, ""),
-         date_of_birth = lubridate::dmy(date_of_birth),
-         date_referred_for_sw_assessment = 
-           lubridate::dmy(date_referred_for_sw_assessment),
-         date_declared_medically_fit = 
-           lubridate::dmy(date_declared_medically_fit),
+# discharge_date = dplyr::na_if(discharge_date, ""),
+#                    date_declared_medically_fit = 
+#                    dplyr::na_if(date_declared_medically_fit, ""),
+         mutate_at(vars(contains("date"), dmy)),
 # SPSS syntax used to use 2 variables to calculate OBDs in the month based on 
 # full length of delay, not from latest RDD (RDD2)- no longer needed?
          ready_for_discharge_date = date_declared_medically_fit,
