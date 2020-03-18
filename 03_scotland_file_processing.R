@@ -264,12 +264,13 @@ datafile <- datafile %>%
     dd_code_1 == "9" & dd_code_2 == "51X" 
     ~ "Adults with Incapacity Act",
     dd_code_1 == "9" & dd_code_2 == "71X" 
-    ~ "Patient exercising statutory right of choice – interim placement is not possible or reasonable"),
+    ~ "Patient exercising statutory right of choice – interim placement is not possible or reasonable"))
 
   # Create census flag
 ################################################################################
 # Is this handling missing dates correctly? Code to "No"???
-  census_flag = case_when(
+datafile <- datafile %>%
+  mutate(census_flag = case_when(
                         # Not discharged and delayed at census
                         is.na(date_declared_medically_fit) ~ "0",
                         is.na(discharge_date) & date_declared_medically_fit < 
@@ -342,28 +343,24 @@ datafile <- datafile %>%
                                        date_declared_medically_fit < census_date 
                   ~ lubridate::time_length(interval(date_declared_medically_fit, 
                                                     census_date), "days"),
-                                       census_flag == "0" ~ 0),
+                                       census_flag == "0" ~ 0))
          # Create delay length group & counts
-         week = 7,
-         month = 365.25/12,
-         delay_length_group = case_when(delay_at_census >= 1 & delay_at_census <= 3
-                                       ~ "1-3 days",
-                                      delay_at_census > 3 & delay_at_census <= 14
-                                      ~ "3-14 days",
-                                      delay_at_census > 14 & delay_at_census <= 28
-                                      ~ "2-4 weeks",
-                                      delay_at_census > 28 & delay_at_census <= 42
-                                      ~ "4-6 weeks",
-                                      delay_at_census > 42 & delay_at_census <= 84
-                                      ~ "6-12 weeks",
-                                      delay_at_census > (6 * month) &
-                                        delay_at_census <= (12 * month) 
-                                      ~ "6-12 months",
-                                      delay_at_census > 84 & delay_at_census 
-                                      <= (6*month) ~ "3-6 months",
-                                      delay_at_census > (12 * month) 
-                                      ~ "12 months or more",
-                                      census_flag == "" ~ NA_character_),
+week = 7
+month = 365.25/12
+datafile <- datafile %>%
+  mutate(delay_length_group = case_when(delay_at_census %in% 1:3 ~ "1-3 days",
+                                        delay_at_census %in% 3:14 ~ "3-14 days",
+                                        delay_at_census %in% 15:28 ~ "2-4 weeks",
+                                        delay_at_census %in% 29:42 ~ "4-6 weeks",
+                                        delay_at_census %in% 43:84 ~ "6-12 weeks",
+                                        delay_at_census > (6 * month) &
+                                          delay_at_census <= (12 * month) 
+                                        ~ "6-12 months",
+                                        delay_at_census > 84 & delay_at_census 
+                                        <= (6*month) ~ "3-6 months",
+                                        delay_at_census > (12 * month) 
+                                        ~ "12 months or more",
+                                        census_flag == "" ~ NA_character_),
          # Create counts for each delay period
          delay_1_to_3_days = dplyr::if_else(delay_at_census >= 1 & 
                                            delay_at_census <= 3, 1, 0),
