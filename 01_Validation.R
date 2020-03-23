@@ -760,8 +760,9 @@ write.xlsx(datafile, paste0(filepath, nhs_board,"_temp.xlsx"))
 table(datafile$census_flag)
 
 #Varstocases
-datafile<-datafile %>% mutate(query=
-                                if_else((query_month:query_missing_date_ref_rec_for_11A) %like% "Y","Y","N"))
+
+datafile<-datafile %>% mutate(query_missing_date_ref_rec_for_11A=
+                                if_else(dd_code_1=="11A" & is.na(date_referred_for_sw_assessment),"Y"," "))
 
 datafile <- datafile %>% mutate(
   query =
@@ -772,7 +773,7 @@ datafile <- datafile %>% mutate(
     | query_ready_for_medical_discharge_lt_adm_date == "Y" | query_discharge_date_lt_rdd == "Y" | query_disch_date_lt_adm_date == "Y" | query_missing_disch_reas == "Y" | query_missing_disch_date == "Y"
     | query_disch_reas_invalid == "Y" | query_hospital_code == "Y" | query_overlapping_dates == "Y" | query_duplicate_chi_census == "Y" | query_obds_ltequal_to_zero == "Y"
     | query_missing_date_ref_rec_for_11A == "Y", "Y", "N"))
-# )
+
 # Checks on query file
 table(datafile$query) # 448 - must be all of the query_local_delay_code
 table(datafile$query_month) # None
@@ -797,6 +798,7 @@ table(datafile$query_discharge_date_lt_rdd) # None
 table(datafile$query_disch_date_lt_adm_date) # None
 table(datafile$query_disch_reas_invalid) # None
 table(datafile$query_disch_reas_invalid) # None
+table(datafile$query_hospitaL_code)
 table(datafile$query_overlapping_dates) # None
 table(datafile$query_duplicate_chi_census) # 0 Check
 table(datafile$query_obds_ltequal_to_zero) # None
