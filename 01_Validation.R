@@ -50,8 +50,9 @@ table(datafile$dd_code_1)
 table(datafile$dd_code_2)
 table(datafile$sex_code)
 
+
                                 
-                                # trim the chi_number to ensure no rogue spaces at beginning or end
+# trim the chi_number to ensure no rogue spaces at beginning or end
 
 # str_pad(datafile$chi_number, 10, pad = "0") # could use this or the following script
 
@@ -68,7 +69,7 @@ datafile %>%
 
 ### . Change discharge reason from code to text
 
-
+table(datafile$discharge_to_code)
 
 datafile <- datafile %>% mutate(
   discharge_to_code =
@@ -76,10 +77,10 @@ datafile <- datafile %>% mutate(
       if_else(discharge_to_code %in% c("2", "02"), "Discharge Home with Home Care",
         if_else(discharge_to_code %in% c("3", "03"), "Discharge Home",
           if_else(discharge_to_code %in% c("4", "04"), "Death",
-            if_else(discharge_to_code %in% c("5", "05"), "Not Fit For Discharge", " "))))))
+            if_else(discharge_to_code %in% c("5", "05"), "Not Fit For Discharge", NA_character_))))))
   
-  table(datafile$discharge_to_code)
-
+table(datafile$discharge_to_code)
+count(datafile,discharge_to_code)
 # Check that variable length of postcode is 7 or less
 datafile <- datafile %>% mutate(
   postcode_chars =
@@ -365,9 +366,9 @@ table(datafile$date_rmd_in_month) # check that
 datafile <- datafile %>% mutate(
   obds_in_month =
     if_else(date_rmd_in_month == "Y" & discharge_date_in_month == "Y", difftime(discharge_date, date_declared_medically_fit, units = "days"),
-      if_else(date_rmd_in_month == " " & discharge_date_in_month == "Y", difftime(discharge_date, month_start, units = "days") + 1,
+      if_else(date_rmd_in_month == "" & discharge_date_in_month == "Y", difftime(discharge_date, month_start, units = "days") + 1,
         if_else(date_rmd_in_month == "Y" & discharge_date_in_month != "Y", difftime(month_end, date_declared_medically_fit, units = "days"),
-          if_else(date_rmd_in_month == " " & discharge_date_in_month != "Y", difftime(month_end, month_start, units = "days") + 1, 0)
+          if_else(date_rmd_in_month == "" & discharge_date_in_month != "Y", difftime(month_end, month_start, units = "days") + 1, 0)
         )
       )
     )
@@ -444,21 +445,21 @@ datafile <- datafile %>% mutate(
 
 datafile <- datafile %>% mutate(
   query_missing_disch_reas =
-    if_else(!is.na(discharge_date) & discharge_to_code == "N", "Y", "N")
+    if_else(is.na(discharge_date) & !is.na(discharge_to_code), "Y", "N")
 )
 
 # Check for Missing Discharge Date
 
 datafile <- datafile %>% mutate(
   query_missing_disch_date =
-    if_else(is.na(discharge_date) & discharge_to_code != "N", "Y", "N")
-)
+    if_else(is.na(discharge_date) & !is.na(discharge_to_code), "Y", "N"))
 
+table(datafile$query_missing_disch_reas)
 # Check for DischReasonInvalid
 
 datafile <- datafile %>% mutate(
   query_disch_reas_invalid =
-    if_else(discharge_to_code %!in% c(
+    if_else(!is.na(discharge_date) & discharge_to_code %!in% c(
       "Death", "Discharge Home", "Discharge Home with Home Care",
       "Not Fit For Discharge", "Placement", " "
     ), "Y", "N")
@@ -632,12 +633,14 @@ datafile <- datafile %>% mutate(
   query_obds_ltequal_to_zero =
     if_else(census_flag == "Y" & obds_in_month <= 0, "Y", "N")
 )
+table(datafile$census_flag)
+table(datafile$obds_in_month)
 
 # query Hospital Code if not H in position 5
 
 datafile <- datafile %>% mutate(
   query_hospital_code =
-    if_else(substr(datafile$discharge_hospital_nat_code, 5, 5) != "H", "Y", "N")
+    if_else(substr(datafile$discharge_hosp_nat_code, 5, 5) != "H", "Y", "N")
 )
 
 table(datafile$query_hospital_code)
@@ -775,7 +778,7 @@ datafile <- datafile %>% mutate(
     | query_missing_date_ref_rec_for_11A == "Y", "Y", "N"))
 
 # Checks on query file
-table(datafile$query) # 448 - must be all of the query_local_delay_code
+table(datafile$query) #
 table(datafile$query_month) # None
 table(datafile$query_location) # None
 table(datafile$query_chi) # None
@@ -797,8 +800,7 @@ table(datafile$query_ready_for_medical_discharge_lt_adm_date) # None
 table(datafile$query_discharge_date_lt_rdd) # None
 table(datafile$query_disch_date_lt_adm_date) # None
 table(datafile$query_disch_reas_invalid) # None
-table(datafile$query_disch_reas_invalid) # None
-table(datafile$query_hospitaL_code)
+table(datafile$query_hospital_code)
 table(datafile$query_overlapping_dates) # None
 table(datafile$query_duplicate_chi_census) # 0 Check
 table(datafile$query_obds_ltequal_to_zero) # None
@@ -810,10 +812,14 @@ table(datafile$query_hospital_code) # to be checked
 # select if query is showing  - May not need this as it selects out all rows
 query_list <- datafile %>% filter(datafile$query == "Y")
 
+# Check missing discharge dates, discharge to code and query_missing_disch_date
+
+dplyr::count(datafile,is.na(discharge_date), discharge_to_code, query_missing_disch_date)
+
 # Note: No query_HospInBoard, query_DoB or query_Reas2noCode9 queries generated previously so ignored in next command.
 
 query_list2 <- subset(query_list, select = c(
-  monthflag, nhs_board, discharge_hospital_nat_code, local_authority_code,
+  monthflag, nhs_board, discharge_hosp_nat_code, local_authority_code,
   postcode, duplicate_chi, chi_number, date_of_birth, discharge_specialty_nat_code, census_flag,
   admission_date, date_referred_for_sw_assessment, date_declared_medically_fit, discharge_date,
   discharge_to_code, dd_code_1, dd_code_2, out_of_area_case_indicator,
