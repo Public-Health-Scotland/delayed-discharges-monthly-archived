@@ -9,10 +9,10 @@ month_start <- ymd("2020/02/01")
 month_end <- ymd("2020/02/29")
 
 Monthflag <- ("Feb 2020")
-nhs_board <- ("a&a")
+nhs_board <- ("borders")
 
 filepath <- ("/conf/delayed_discharges/RAP development/2020_02/Outputs/")
-filepath2 <- ("/conf/delayed_discharges/Data files/Single Submissions (July 2016 onwards)/2020_02/Data/a&a/")
+filepath2 <- ("/conf/delayed_discharges/Data files/Single Submissions (July 2016 onwards)/2020_02/Data/borders/")
 
 ### Get data file ( csv ) -----
 
@@ -366,9 +366,9 @@ table(datafile$date_rmd_in_month) # check that
 datafile <- datafile %>% mutate(
   obds_in_month =
     if_else(date_rmd_in_month == "Y" & discharge_date_in_month == "Y", difftime(discharge_date, date_declared_medically_fit, units = "days"),
-      if_else(date_rmd_in_month == "" & discharge_date_in_month == "Y", difftime(discharge_date, month_start, units = "days") + 1,
+      if_else(date_rmd_in_month == "N" & discharge_date_in_month == "Y", difftime(discharge_date, month_start, units = "days") + 1,
         if_else(date_rmd_in_month == "Y" & discharge_date_in_month != "Y", difftime(month_end, date_declared_medically_fit, units = "days"),
-          if_else(date_rmd_in_month == "" & discharge_date_in_month != "Y", difftime(month_end, month_start, units = "days") + 1, 0)
+          if_else(date_rmd_in_month == "N" & discharge_date_in_month != "Y", difftime(month_end, month_start, units = "days") + 1, 0)
         )
       )
     )
@@ -382,7 +382,7 @@ datafile <- datafile %>% mutate(num_pats = 1)
 table(datafile$num_pats) # 525
 table(datafile$dd_code_1)
 # Create Query Flags
-
+datafile_check_census<-datafile %>% filter(datafile$census_flag=="Y")
 
 # Create ready_medical_discharge_date as a string
 datafile <- datafile %>%
@@ -481,6 +481,8 @@ datafile <- datafile %>% mutate(
   query_missing_date_ref_rec_for_11A =
     if_else(dd_code_1 == "11A" & is.na(date_referred_for_sw_assessment), "Y", "N")
 )
+
+table(datafile$date_referred_for_sw_assessment)
 table(datafile$dd_code_1) # check that codes haven't changed
 table(datafile$dd_code_2) # check that codes haven't changed
 #table(datafile$query_missing_date_ref_rec_for_11A)
@@ -561,8 +563,10 @@ table(datafile$dd_code_2)
 
 datafile <- datafile %>% mutate(
   query_location =
-    if_else(discharge_hosp_nat_code == "N", "Y", "N")
+    if_else(str_ends(discharge_hosp_nat_code, "H") == "FALSE", "Y", "N")
 )
+table(datafile$query_location)
+table(datafile$discharge_hosp_nat_code)
 
 datafile <- datafile %>% mutate(
   query_chi =
