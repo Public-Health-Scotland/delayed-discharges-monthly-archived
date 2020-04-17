@@ -9,14 +9,16 @@ month_start <- ymd("2020/02/01")
 month_end <- ymd("2020/02/29")
 
 Monthflag <- ("Feb 2020")
-nhs_board <- ("borders")
+nhs_board <- ("fv")
 
 filepath <- ("/conf/delayed_discharges/RAP development/2020_02/Outputs/")
-filepath2 <- ("/conf/delayed_discharges/Data files/Single Submissions (July 2016 onwards)/2020_02/Data/borders/")
+filepath2 <- paste0("/conf/delayed_discharges/Data files/Single Submissions (July 2016 onwards)/2020_02/Data/",nhs_board,"/")
 
 ### Get data file ( csv ) -----
 
 datafile <- read.csv(paste0(filepath2, nhs_board, "_original.csv"))
+
+datafile %<>% mutate_all(na_if, "")
 
 datafile <-
   datafile %>% clean_names()
