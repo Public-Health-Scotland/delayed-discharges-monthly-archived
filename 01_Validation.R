@@ -9,7 +9,7 @@ month_start <- ymd("2020/02/01")
 month_end <- ymd("2020/02/29")
 
 Monthflag <- ("Feb 2020")
-nhs_board <- ("fife")
+nhs_board <- ("grampian")
 
 filepath <- ("/conf/delayed_discharges/RAP development/2020_02/Outputs/")
 filepath2 <- paste0("/conf/delayed_discharges/Data files/Single Submissions (July 2016 onwards)/2020_02/Data/",nhs_board,"/")
@@ -141,17 +141,17 @@ table(datafile$age_at_rdd)
 
 -# amend dates to same formats
   
-datafile$date_declared_medically_fit <- format(as.Date(datafile$date_declared_medically_fit, "%d/%m/%Y"), "%Y/%m/%d")
+# datafile$date_declared_medically_fit <- format(as.Date(datafile$date_declared_medically_fit, "%d/%m/%Y"), "%Y/%m/%d")
+# 
+# datafile$admission_date <- format(as.Date(datafile$admission_date, "%d/%m/%Y"), "%Y/%m/%d")
+# 
+# datafile$discharge_date <- format(as.Date(datafile$discharge_date, "%d/%m/%Y"), "%Y/%m/%d")
+# 
+# datafile$date_of_birth <- format(as.Date(datafile$date_of_birth, "%d/%m/%Y"), "%Y/%m/%d")
+# month_start <- format(as.Date(month_start, "%d/%m/%Y"), "%Y/%m/%d")
+# month_end <- format(as.Date(month_end, "%d/%m/%Y"), "%Y/%m/%d")
 
-datafile$admission_date <- format(as.Date(datafile$admission_date, "%d/%m/%Y"), "%Y/%m/%d")
 
-datafile$discharge_date <- format(as.Date(datafile$discharge_date, "%d/%m/%Y"), "%Y/%m/%d")
-
-datafile$date_of_birth <- format(as.Date(datafile$date_of_birth, "%d/%m/%Y"), "%Y/%m/%d")
-
-month_start <- format(as.Date(month_start, "%d/%m/%Y"), "%Y/%m/%d")
-
-month_end <- format(as.Date(month_end, "%d/%m/%Y"), "%Y/%m/%d")
 
 
 #convert all dates to the same format
@@ -933,7 +933,7 @@ datafile2 %<>%
 
 # Provisional Census / OBD figures
 
-datafile <- read_sav(paste0(filepath, "glasgow_temp.sav"))
+datafile <- read_sav(paste0(filepath, nhs_board,"_temp.sav"))
 
 # Create a provsional HB census total - excl. Code 100.
 
