@@ -1,9 +1,6 @@
 #########################################################################
 # Name of file - setup_environment.R
 # Data release - Monthly Delayed Discharges publication
-# Original Authors - Simon Quirk
-# Orginal Date - January 2020
-#
 # Type - Reproducible Analytical Pipeline
 # Written/run on - RStudio server
 # Version of R - 3.5.1
@@ -18,6 +15,7 @@
 ### 1 - Load packages ----
 library(magrittr)     # For the %<>% functionality
 library(here)         # For the here() function
+library(readr)        # For reading in csv files
 library(dplyr)        # For data manipulation in the "tidy" way
 library(tidyr)        # For data manipulation in the "tidy" way
 library(haven)        # For reading in SPSS files

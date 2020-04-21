@@ -1,11 +1,6 @@
 ##########################################################
-# Name of file: Trend file
+# Name of file: 05_trend_file.R
 # Data Release: Delayed Discharges monthly publication
-# Original author(s): Jennifer Noall (spss version: James Mc Nally)
-# Original date: 09/09/19 (spss version: 30/11/2017)
-# Latest update author (if not using version control)
-# Latest update date (if not using version control)
-# Latest update description (if not using version control)
 # Type of script: Preparation
 # Written/run on: R Studio SERVER
 # Version of R that the script was most recently run on: 3.5.1
@@ -24,8 +19,7 @@ source("00_setup_environment.R")
 ### 2. Get Scotland_validated file for latest month ----
 
 # Read in file
-datafile <- data.frame(readr::read_csv(paste0(filepath, census_date, 
-                                   "_SCOTLAND_validated.csv")))
+datafile <- readr::read_csv(paste0(filepath, census_date, "_SCOTLAND_validated.csv"))
 
 # Add variable 'cen_num' (census number for latest month)
 # First census is 
@@ -36,42 +30,24 @@ datafile <- datafile %>%
     fin_yr = phsmethods::fin_year(census_date),
     ready_for_discharge_day = toupper(wday(ready_for_discharge_date, 
                                            label = TRUE, abbr = TRUE)),
-    discharge_day = toupper(wday(ready_for_discharge_date, label = TRUE, 
-                                 abbr = TRUE)),
-    census_date = census_date,
-    age_grp = if_else(age_at_rdd < 75, "18-74",
-              if_else(age_at_rdd >= 75, "75+", " "))) %>%
+    discharge_day = toupper(wday(discharge_date, label = TRUE, abbr = TRUE)),
+    census_date = census_date) %>%
   dplyr::select(-x1, -date_declared_medically_fit, -age_rdd_missing, -census_date_plus_3_working_days, -drmd_in_month, -date_discharge_in_month, -week, -month, -duplicate_CHI, -error_Duplicate_CHI_Census)
 
-### 2.Add latest monthly file to current trend file ----
+### 3.Add latest monthly file to current trend file ----
 
 # Add files together to update trend file
 trend_file <- readr::read_csv(paste0(filepath, prev_census_date, "_trend_file_", 
                                 initial_month, "_", previous_month, ".csv")) %>%
-  mutate(chi_number = toString(chi_number),
-         census_date = as.Date(census_date, "%d/%m/%y"),
-         date_of_birth = as.Date(date_of_birth, "%d/%m/%y"),
-         admission_date = as.Date(admission_date, "%d/%m/%y"),
-         date_referred_for_sw_assessment = 
-           as.Date(date_referred_for_sw_assessment, "%d/%m/%y"),
-         ready_for_discharge_date = 
-           as.Date(ready_for_discharge_date, "%d/%m/%y"),
-         discharge_date = as.Date(discharge_date, "%d/%m/%y"),
-         # Change discharge reason from text to code
-         discharge_to_code = as.numeric(
-           case_when(discharge_to_code == "Placement" ~ "1",
-                     discharge_to_code == "Continuing Care NHS (MEL)" ~ "1",
-                     discharge_to_code == "Discharge Home with Home Care" ~ "2",
-                     discharge_to_code == "Discharge Home" ~ "3",
-                     discharge_to_code == "Death" ~ "4",
-                     discharge_to_code == "Not Fit For Discharge" ~ "5")))
+  janitor::clean_names() %>%
+  mutate(chi_number = toString(chi_no)) %>%
+         mutate_at(vars(contains("date")), dmy)
 
-trend_file <- bind_rows(datafile, trend_file) %>%
-  arrange(cen_num, chi_number)
+trend_file <- bind_rows(trend_file, datafile)
 
 readr::write_csv(trend_file, paste0(filepath, census_date, "_trend_file_", 
                           initial_month, "_", current_month, ".csv"))
-### 3.Checks ----
+### 4.Checks ----
 
 monthflag_cennum_patients <- updated_trend %>% 
   group_by(cennum,MONTHFLAG) %>% 
