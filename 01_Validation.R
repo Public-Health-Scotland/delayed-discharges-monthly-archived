@@ -9,7 +9,7 @@ month_start <- ymd("2020/02/01")
 month_end <- ymd("2020/02/29")
 
 Monthflag <- ("Feb 2020")
-nhs_board <- ("grampian")
+nhs_board <- ("fv")
 
 filepath <- ("/conf/delayed_discharges/RAP development/2020_02/Outputs/")
 filepath2 <- paste0("/conf/delayed_discharges/Data files/Single Submissions (July 2016 onwards)/2020_02/Data/",nhs_board,"/")
@@ -18,7 +18,13 @@ filepath2 <- paste0("/conf/delayed_discharges/Data files/Single Submissions (Jul
 
 datafile <- read.csv(paste0(filepath2, nhs_board, "_original.csv"))
 
+#convert all spaces to #N/A
 datafile %<>% mutate_all(na_if, "")
+
+#convert all dates to the same format
+datafile %<>% mutate_at(vars(contains("date")), dmy)
+
+
 
 datafile <-
   datafile %>% clean_names()
@@ -139,7 +145,7 @@ df_missingage_at_rdd<-datafile %>%
 
 table(datafile$age_at_rdd)
 
--# amend dates to same formats
+# amend dates to same formats
   
 # datafile$date_declared_medically_fit <- format(as.Date(datafile$date_declared_medically_fit, "%d/%m/%Y"), "%Y/%m/%d")
 # 
@@ -155,7 +161,7 @@ table(datafile$age_at_rdd)
 
 
 #convert all dates to the same format
-datafile %<>% mutate_at(vars(contains("date")), dmy)
+# datafile %<>% mutate_at(vars(contains("date")), dmy)
 
 
 # # amend dates to same formats
@@ -857,8 +863,8 @@ query_list2 <- subset(query_list, select = c(
   query_obds_ltequal_to_zero, query_missing_date_ref_rec_for_11A, num_pats
 ))
 
-write.sav(query_list2, paste0(filepath, nhs_board, "_Query_List.sav"))
-write.xlsx(query_list2, paste0(filepath, nhs_board, "_Query_List.xlsx"))
+write.sav(query_list2, paste0(filepath, nhs_board, "_Query_List_with_datechangeall.sav"))
+write.xlsx(query_list2, paste0(filepath, nhs_board, "_Query_List_v2.xlsx"))
 # isn't saving out a blank file as no errors!
 # If no Query_List.xlsx shows up this means there are no queries.
 
