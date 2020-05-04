@@ -72,7 +72,7 @@ datafile <- datafile %>%
                                # Is the "." a typo??????????????
                                dd_code_1 == "27A." ~ "27",
                                dd_code_1 == "62" ~ "67",
-                               dd_code_1 == "63" ~ "67"
+                               dd_code_1 == "63" ~ "67",
                                TRUE ~ dd_code_1),
          # reason code variables to upper case
          dd_code_1 = case_when(TRUE ~ toupper(dd_code_1)),
@@ -156,7 +156,7 @@ datafile <- datafile %>%
   filter(ready_for_discharge_date != last_dom) %>%
 
   #3. Remove any records where patient has not been declared ready for discharge
-  filter(is.na(date_declared_medically_fit))
+  filter(!is.na(date_declared_medically_fit))
 
 ### 4.Derivations ----
 
@@ -283,6 +283,21 @@ datafile <- datafile %>%
                         # Everything else
                         TRUE ~ "0"),
          
+         # Flag those discharged up to 3 working days after census 
+         # Still needed for calculating census totals. 
+         # Identify Census Date + 3 working days (census is always last THURS of
+         # month):
+         census_date_plus_3_working_days = census_date + days(5),
+         # Flag those with a discharge date le census_date_plus_3_working_days 
+         # and check against BO variable CENSUSDISCHARGEWITHIN3WORKINGDAYS.
+         discharge_within_3_days_census =
+           case_when(is.na(discharge_date) ~ 0,
+                     census_flag == "1" & 
+                       discharge_date < census_date_plus_3_working_days & 
+                       dd_code_1 != "100" &
+                       (is.na(dd_code_2) | (dd_code_2 != "26X" & 
+                                              dd_code_2 != "46X")) ~ 1, TRUE ~ 0),
+         
          # Flag whether date_declared_medically_fit in current month
          drmd_in_month = case_when(
            date_declared_medically_fit >= first_dom & 
@@ -331,7 +346,8 @@ datafile <- datafile %>%
                   ~ lubridate::time_length(interval(date_declared_medically_fit, 
                                                     census_date), "days"),
                                        census_flag == "0" ~ 0))
-         # Create delay length group & counts
+
+# Create delay length group & counts
 week = 7
 month = 365.25/12
 datafile <- datafile %>%
@@ -406,7 +422,8 @@ datafile <- datafile %>%
   tidylog::group_by(chi_number, census_flag) %>%
   mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & 
                                                 census_flag == "1", 
-                                              lag(error_Duplicate_CHI_Census), error_Duplicate_CHI_Census)) %>%
+                                              lag(error_Duplicate_CHI_Census), 
+                                              error_Duplicate_CHI_Census)) %>%
   dplyr::ungroup() %>%
   # DELAY LOCATION (acute, gpled, notgpled) while spec still in data.
   dplyr::arrange(location)
@@ -415,13 +432,13 @@ datafile <- datafile %>%
 hospital_lookup <- bind_rows(readr::read_rds(paste0(
   plat_filepath, "linkage/output/lookups/Unicode/National Reference Files/",
   "location.rds")) %>%
-    select(Location, Locname) %>%
+  select(Location, Locname) %>%
     rename(location      = Location,
            location_name = Locname),
   readr::read_rds(paste0(plat_filepath,
                          "linkage/output/lookups/Unicode/National Reference Files/",
                          "Health_Board_Identifiers.rds")) %>%
-    select(description, HB_Area_2014) %>%
+  select(description, HB_Area_2014) %>%
     rename(location      = HB_Area_2014,
            location_name = description),
   tibble(location = "Scot", location_name = "Scotland"),
@@ -434,11 +451,8 @@ hospital_lookup <- bind_rows(readr::read_rds(paste0(
 datafile <- datafile %>%
   tidylog::left_join(hospital_lookup, by = "location") %>%
   dplyr::mutate(acute = dplyr::if_else(is.na(location_name), 1, 0),
-                gpled = dplyr::if_else(acute == 0 & 
-                                         spec_code == "E12",
-                                       1, 0),
-                notgpled = dplyr::if_else(acute == 0 & gpled == 0, 1, 0)) %>%
-  dplyr::select(-c(total, check2))
+                gpled = dplyr::if_else(acute == 0 & spec_code == "E12", 1, 0),
+                notgpled = dplyr::if_else(acute == 0 & gpled == 0, 1, 0))
 
 
 ### 5.Create prov census/OBD figures ----
