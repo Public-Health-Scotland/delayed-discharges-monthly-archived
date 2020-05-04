@@ -1,0 +1,589 @@
+##########################################################
+# Name of file: Scotland File Processing
+# Data Release: Delayed Discharges monthly publication
+# Original author(s): Jennifer Noall (spss version: James Mc Nally, 
+# Deanna Campbell, Peter McClurg)
+# Original date: 21/10/2019 (spss version: 08/2016)
+# Latest update author (if not using version control)
+# Latest update date (if not using version control)
+# Latest update description (if not using version control)
+# Type of script: Preparation
+# Written/run on: R Studio SERVER
+# Version of R that the script was most recently run on: 3.5.1
+# Description of content: This syntax takes a Scotland csv file and carries out 
+# validation using the data definitions as at July 2016.  
+# Approximate run time: TBC
+##########################################################
+
+
+### 1.Housekeeping ----
+source("00_setup_environment.R")
+
+
+### 2.Get Scotland_validated file for latest month ----
+
+# Read in file
+datafile <- readr::read_csv(paste0(filepath,"Allboards_R_.csv")) %>%
+  janitor::clean_names()
+
+# Format variables and recode
+datafile <- datafile %>%
+  dplyr::rename(location = discharge_hospital_nat_code,
+                spec_code = discharge_specialty_nat_code) %>%
+  #CHI NUMBER - Remove leading / trailing spaces & add leading 0 if missing.
+  mutate(chi_number = trimws(chi_number),
+         chi_number = str_pad(chi_number, width = 10, pad = "0", side = "left"),
+         # SPSS syntax used to use 2 variables to calculate OBDs in the month 
+         # based on full length of delay, not from latest RDD (RDD2)- no longer 
+         # needed?
+         ready_for_discharge_date = date_declared_medically_fit) %>%
+  #Format dates
+  dplyr::mutate_at(vars(contains('date')), lubridate::dmy)
+
+datafile <- datafile %>%
+  # Recode out of area:
+  mutate(out_of_area_case_indicator = case_when(
+                                      is.na(out_of_area_case_indicator) ~ "0",
+                                      out_of_area_case_indicator == "Yes" ~ "1",
+                                      out_of_area_case_indicator == "No" ~ "0",
+                                      out_of_area_case_indicator == "no" ~ "0"),
+         # Recode sex
+         sex_code = case_when(sex_code %in% c("1", "M") ~ "Male",
+                              sex_code %in% c("2", "F") ~ "Male",
+                              # If Gender is blank check CHINo 9th charcter 
+                              # (1, 3, 5, 7, 9 = Male, 0, 2, 4, 6 , 8 = female)
+                              sex_code != "" ~ sex_code,
+                              substr(chi_number,9,9) %in% c("1","3","5","7","9")
+                              ~ "Male",
+                              substr(chi_number,9,9) %in% c("0","2","4","6","8")
+                              ~ "Female",
+                              TRUE ~ "Unknown"),
+         # Recode delay reason
+         # Set blank codes to 11A
+         dd_code_1 = case_when(is.na(dd_code_2) & dd_code_1 == " " ~ "11A",
+                               # recode code 9's
+                               dd_code_1 == "09" ~ "9",
+                               dd_code_1 == "41" ~ "25E",
+                               # recode old delay reasons
+                               dd_code_1 == "41A" ~ "23C",
+                               dd_code_1 == "41B" ~ "23D",
+                               dd_code_1 == "43" ~ "24A",
+################################################################################
+                               # Is the "." a typo??????????????
+                               dd_code_1 == "27A." ~ "27",
+                               dd_code_1 == "62" ~ "67",
+                               dd_code_1 == "63" ~ "67",
+                               TRUE ~ dd_code_1),
+         # reason code variables to upper case
+         dd_code_1 = case_when(TRUE ~ toupper(dd_code_1)),
+         dd_code_2 = case_when(TRUE ~ toupper(dd_code_2)))
+    
+datafile <- datafile %>%         
+  # Format postcode variable into pc7
+  mutate(postcode = phsmethods::postcode(postcode, format = "pc7"),
+  
+  # Recode LA
+  local_authority_code = case_when(
+    local_authority_code == "" ~ "Missing",
+    local_authority_code == "1" | local_authority_code == "01"
+    | local_authority_code == "Aberdeen" ~ "Aberdeen City",
+    local_authority_code == "2" | local_authority_code == "02" ~ "Aberdeenshire",
+    local_authority_code == "3" | local_authority_code == "03" ~ "Angus",
+    local_authority_code == "4" | local_authority_code == "04"
+    | local_authority_code == "Argyll & Bute Council" ~ "Argyll & Bute", 
+    local_authority_code == "5" | local_authority_code == "05" ~ "Scottish Borders",
+    local_authority_code == "6" | local_authority_code == "06" ~ "Clackmannanshire",
+    local_authority_code == "7" | local_authority_code == "07" ~ "West Dunbartonshire",
+    local_authority_code == "8" | local_authority_code == "08" ~ "Dumfries & Galloway",
+    local_authority_code == "9" | local_authority_code == "09" ~ "Dundee City",
+    local_authority_code == "10" ~ "East Ayrshire",
+    local_authority_code == "11" ~ "East Dunbartonshire",
+    local_authority_code == "12" ~ "East Lothian",
+    local_authority_code == "13" ~ "East Renfrewshire",
+    local_authority_code == "14" ~ "City of Edinburgh",
+    local_authority_code == "15" ~ "Falkirk",
+    local_authority_code == "16" ~ "Fife",
+    local_authority_code == "17" ~ "Glasgow City",
+    local_authority_code == "18" ~ "Highland",
+    local_authority_code == "19" ~ "Inverclyde",
+    local_authority_code == "20" ~ "Midlothian",
+    local_authority_code == "21" ~ "Moray",
+    local_authority_code == "22" ~ "North Ayrshire",
+    local_authority_code == "23" ~ "North Lanarkshire",
+    local_authority_code == "24" ~ "Orkney",
+    local_authority_code == "25" ~ "Perth & Kinross",
+    local_authority_code == "26" ~ "Renfrewshire",
+    local_authority_code == "27" | local_authority_code == "shetland Islands"
+    | local_authority_code == "Shetland Islands" ~ "Shetland",
+    local_authority_code == "28" ~ "South Ayrshire",
+    local_authority_code == "29" ~ "South Lanarkshire",
+    local_authority_code == "30" ~ "Stirling",
+    local_authority_code == "31" ~ "West Lothian",
+    local_authority_code == "32" | local_authority_code == "Eilean Siar"
+    ~ "Comhairle nan Eilean Siar",
+    local_authority_code == "90" ~ "Other"))
+
+
+### 3.Exclusions ----
+
+# AGE AT RMD DATE (Ready for Medical Discharge).
+
+# compute Age at Ready for Discharge Date.
+# Create interval() using Date of Birth and Ready for Discharge Date.
+# Then time_length() gives the exact length in "year"
+# Note that floor() rounds down to nearest integer to prevent 46.5 years giving
+# age as 47
+datafile <- datafile %>%
+  mutate(age_at_rdd = floor(time_length(interval(date_of_birth, 
+                                        date_declared_medically_fit), "year"))) %>%
+         # Ensure ages 18+ only
+         filter(age_at_rdd >= 18)
+
+
+# Keep only hospital locations (i.e. codes ending in H plus carehome in Grampian
+# with NHS staffed beds)
+datafile <- datafile %>% 
+  filter(str_sub(location,5,5) == "H" 
+         | location == "N465R") %>%
+  
+  # ZERO DELAYS
+  # 1. Remove any records where Ready for Discharge Date = Discharge Date as 
+  # not delays. 
+  filter(ready_for_discharge_date != discharge_date) %>%
+
+  #2. Remove any records where Ready for Discharge Date = Last Day of Month
+  # (last_dom) - these do not become delays until the 1st of the following month.
+  filter(ready_for_discharge_date != last_dom) %>%
+
+  #3. Remove any records where patient has not been declared ready for discharge
+  filter(!is.na(date_declared_medically_fit))
+
+### 4.Derivations ----
+
+# Derive age groups
+datafile <- datafile %>%
+  mutate(age_grp = case_when(age_at_rdd < 75 ~ "18-74",
+                             age_at_rdd >= 75 ~ "75+"),
+# Create Reason Code Groupings
+# High level reason code grouping - post July 2016
+# Transport grouped under H&SC reasons as per BO report
+  reason_grp_high_level = case_when(is.na(dd_code_1) ~ NA_character_,
+                                    dd_code_1 == "100" ~ "Code 100", 
+                                    dd_code_1 == "9" ~ "Code 9",
+                                    dd_code_1 %in% c("11A","11B","23C","23D","24A","24B","24C","24D",
+                                                     "24E","24F","27A","25A","25D","25E","25F","44")
+                                    ~ "Health and Social Care Reasons",
+                                    dd_code_1 %in% c("51","52","61","67","71","72","73","74")
+                                    ~ "Patient/Carer/Family-related reasons"), 
+  reason_grp = case_when(dd_code_1 %in% c("11A","11B") ~ "H&SC - Community Care Assessment",
+                         dd_code_1 %in% c("23C","23D") ~ "H&SC - Funding",
+                         dd_code_1 %in% c("24A","24B","24C","24D","24E","24F","27A")
+                         ~ "H&SC - Place Availability",
+                         dd_code_1 %in% c("25A","25D","25E","25F")
+                         ~ "H&SC - Care Arrangements",
+                         dd_code_1 %in% c("44") ~ "H&SC - Transport",
+                         dd_code_1 %in% c("51","52") 
+                         ~ "Patient/Carer/Family-related reasons: Legal/Financial", 
+                         dd_code_1 %in% c("61","67")
+                         ~ "Patient/Carer/Family-related reasons: Disagreements",
+                         dd_code_1 %in% c("71","72","73","74")
+                         ~ "Patient/Carer/Family-related reasons: Other",
+                         dd_code_2 %in% c("71X","25X","24EX","24DX")
+                         ~ "Other code 9 reasons (not AWI)",
+                         dd_code_2 %in% c("51X") ~ "Adults with Incapacity Act"),
+  # Reason Codes INDIVIDUAL - Post July 2016.
+  delay_description = case_when(dd_code_1 == "11A"
+    ~ "Awaiting commencement of post-hospital social care assessment (including transfer to another area team). Social care includes home care and social work OT",
+    dd_code_1 == "11B" 
+    ~ "Awaiting completion of post-hospital social care assessment (including transfer to another area team). Social care includes home care and social work OT",
+    dd_code_1 == "23C" 
+    ~ "Non-availability of statutory funding to purchase Care Home Place",
+    dd_code_1 == "23D" 
+    ~ "Non-availability of statutory funding to purchase any Other Care Package",
+    dd_code_1 == "24A" 
+    ~ "Awaiting place availability in Local Authority Residential Home",
+    dd_code_1 == "24B" 
+    ~ "Awaiting place availability in Independent Residential Home",
+    dd_code_1 == "24C" 
+    ~ "Awaiting place availability in Nursing Home",
+    dd_code_1 == "24D" 
+    ~ "Awaiting place availability in Specialist Residential Facility for younger age groups (<65)",
+    dd_code_1 == "24E" 
+    ~ "Awaiting place availability in Specialist Residential Facility for older age groups (65+)",
+    dd_code_1 == "24F" 
+    ~ "Awaiting place availability in care home (EMI/Dementia bed required)",
+    dd_code_1 == "27A" 
+    ~ "Awaiting place availability in an Intermediate Care facility",
+    dd_code_1 == "25A" 
+    ~ "Awaiting completion of arrangements for Care Home placement",
+    dd_code_1 == "25D" 
+    ~ "Awaiting completion of arrangements - in order to live in their own home – awaiting social support (non-availability of services)",
+    dd_code_1 == "25E" 
+    ~ "Awaiting completion of arrangements - in order to live in their own home – awaiting procurement/delivery of equipment/adaptations fitted",
+    dd_code_1 == "25F" 
+    ~ "Awaiting completion of arrangements - Re-housing provision (including sheltered housing and homeless patients)",
+    dd_code_1 == "51" 
+    ~ "Legal issues (including intervention by patient’s lawyer) - e.g. informed consent and/or adult protection issues",
+    dd_code_1 == "52" 
+    ~ "Financial and personal assets problem - e.g. confirming financial assessment",
+    dd_code_1 == "61" 
+    ~ "Internal family dispute issues (including dispute between patient and carer)",
+    dd_code_1 == "67" 
+    ~ "Disagreement between patient/carer/family and health and social  care",
+    dd_code_1 == "71" 
+    ~ "Patient exercising statutory right of choice",
+    dd_code_1 == "72" 
+    ~ "Patient does not qualify for care",
+    dd_code_1 == "73" 
+    ~ "Family/relatives arranging care",
+    dd_code_1 == "74" 
+    ~ "Other patient/carer/family-related reason",
+    dd_code_1 == "44" 
+    ~ "Awaiting availability of transport",
+    dd_code_1 == "100" 
+    ~ "Reprovisioning/Recommissioning (see data definitions manual section 2.3)",
+    dd_code_1 == "9" & dd_code_2 == "24DX" 
+    ~ "Awaiting place availability in Specialist Facility for high level younger age groups (<65) where the Facility is not currently available and no interim option is appropriate",
+    dd_code_1 == "9" & dd_code_2 == "24EX" 
+    ~ "Awaiting place availability in Specialist Facility for high level older age groups (65+) where the Facility is not currently available and an interim option is not appropriate",
+    dd_code_1 == "9" & dd_code_2 == "26X" ~ "Care Home/facility closed",
+    dd_code_1 == "9" & dd_code_2 == "46X" 
+    ~ "Ward closed – patient well but cannot be discharged due to closure",
+    dd_code_1 == "9" & dd_code_2 == "25X" 
+    ~ "Awaiting completion of complex care arrangements - in order to live in their own home",
+    dd_code_1 == "9" & dd_code_2 == "51X" 
+    ~ "Adults with Incapacity Act",
+    dd_code_1 == "9" & dd_code_2 == "71X" 
+    ~ "Patient exercising statutory right of choice – interim placement is not possible or reasonable"))
+
+  # Create census flag
+################################################################################
+# Is this handling missing dates correctly? Code to "No"???
+datafile <- datafile %>%
+  mutate(census_flag = case_when(
+                        # Not discharged and delayed at census
+                        is.na(date_declared_medically_fit) ~ "0",
+                        is.na(discharge_date) & date_declared_medically_fit < 
+                        census_date & ((is.na(dd_code_2) | dd_code_2 != "26X" 
+                                        | dd_code_2 != "46X")) ~ "1",
+                          
+                        # Discharged after census
+                        !is.na(discharge_date) & discharge_date >= census_date & 
+                          date_declared_medically_fit < census_date & 
+                          ((is.na(dd_code_2) | dd_code_2 != "26X" | 
+                              dd_code_2 != "46X")) ~ "1",
+                        !is.na(discharge_date) & discharge_date <= census_date & 
+                          ((is.na(dd_code_2) | dd_code_2 != "26X" |
+                              dd_code_2 != "46X")) ~ "0",
+                        !is.na(discharge_date) & discharge_date >= census_date & 
+                          ((is.na(dd_code_2) | dd_code_2 != "26X" | 
+                              dd_code_2 != "46X")) 
+                        ~ "0",
+                        
+                        # Everything else
+                        TRUE ~ "0"),
+         
+         # Flag those discharged up to 3 working days after census 
+         # Still needed for calculating census totals. 
+         # Identify Census Date + 3 working days (census is always last THURS of
+         # month):
+         census_date_plus_3_working_days = census_date + days(5),
+         # Flag those with a discharge date le census_date_plus_3_working_days 
+         # and check against BO variable CENSUSDISCHARGEWITHIN3WORKINGDAYS.
+         discharge_within_3_days_census =
+           case_when(is.na(discharge_date) ~ 0,
+                     census_flag == "1" & 
+                       discharge_date < census_date_plus_3_working_days & 
+                       dd_code_1 != "100" &
+                       (is.na(dd_code_2) | (dd_code_2 != "26X" & 
+                                              dd_code_2 != "46X")) ~ 1, TRUE ~ 0),
+         
+         # Flag whether date_declared_medically_fit in current month
+         drmd_in_month = case_when(
+           date_declared_medically_fit >= first_dom & 
+             date_declared_medically_fit <= last_dom ~ "1",
+           TRUE ~ "0"),
+         
+         # Flag whether discharge date in current month
+         date_discharge_in_month = case_when(
+           discharge_date >= first_dom & 
+             discharge_date <= last_dom ~ "1",
+           TRUE ~ "0"),
+         
+         # Now there are 2 variables which will make it easier to calculate OBDs
+         # in the month.
+         
+         # NB: when substracting one date from another, this done as a numeric 
+         # sum - eg 31-1 = 30.
+         # If a patient is ready for discharge WITHIN current month, the above 
+         # calculation works because it doesn't include day 1 as a delay - which
+         # is fine because we don't count this (RDD) either.
+         
+         #However, for patients with a ready for discharge date (RDD) BEFORE the 
+         # current month the calculation of month end minus month start 
+         # (31-1) = 30 is inaccurate in terms of capturing days delayed. This is
+         # why the computations below ADD 1 to records where DRMD is not in the
+         # current month.
+         obds_in_month = case_when(
+           drmd_in_month == "1" & date_discharge_in_month == "1" ~
+             lubridate::time_length(
+               lubridate::interval(date_declared_medically_fit, discharge_date),
+               "days"),
+           drmd_in_month == "0" & date_discharge_in_month == "1" ~
+             lubridate::time_length(lubridate::interval(first_dom, 
+                                                      discharge_date), "days") + 1,
+           drmd_in_month == "1" & date_discharge_in_month == "0" ~
+             lubridate::time_length(
+               lubridate::interval(date_declared_medically_fit, last_dom), 
+               "days"),
+           drmd_in_month == "0" & date_discharge_in_month == "0" ~ 
+             lubridate::time_length(lubridate::interval(first_dom, last_dom), "days") + 1
+           ),
+         
+         # LENGTH OF DELAY AT CENSUS POINT.
+         delay_at_census = case_when(census_flag == "1" & 
+                                       date_declared_medically_fit < census_date 
+                  ~ lubridate::time_length(interval(date_declared_medically_fit, 
+                                                    census_date), "days"),
+                                       census_flag == "0" ~ 0))
+
+# Create delay length group & counts
+week = 7
+month = 365.25/12
+datafile <- datafile %>%
+  mutate(delay_length_group = case_when(delay_at_census %in% 1:3 ~ "1-3 days",
+                                        delay_at_census %in% 3:14 ~ "3-14 days",
+                                        delay_at_census %in% 15:28 ~ "2-4 weeks",
+                                        delay_at_census %in% 29:42 ~ "4-6 weeks",
+                                        delay_at_census %in% 43:84 ~ "6-12 weeks",
+                                        delay_at_census > (6 * month) &
+                                          delay_at_census <= (12 * month) 
+                                        ~ "6-12 months",
+                                        delay_at_census > 84 & delay_at_census 
+                                        <= (6*month) ~ "3-6 months",
+                                        delay_at_census > (12 * month) 
+                                        ~ "12 months or more",
+                                        census_flag == "" ~ NA_character_),
+         # Create counts for each delay period
+         delay_1_to_3_days = dplyr::if_else(delay_at_census >= 1 & 
+                                              delay_at_census <= 3, 1, 0),
+         delay_3_to_14_days = dplyr::if_else(delay_at_census > 3 &
+                                               delay_at_census <= 14, 1, 0),
+         delay_2_to_4_weeks = dplyr::if_else(delay_at_census > 14 &
+                                               delay_at_census <= 28, 1, 0),
+         delay_4_to_6_weeks = dplyr::if_else(delay_at_census > 28 &
+                                               delay_at_census <= 42, 1, 0),
+         delay_6_to_12_weeks = dplyr::if_else(delay_at_census > 42 &
+                                                delay_at_census <= 84, 1, 0),
+         delay_3_to_6_months = dplyr::if_else(delay_at_census > 84 &
+                                                delay_at_census <= (6*month), 1,
+                                              0),
+         delay_6_to_12_months = dplyr::if_else(delay_at_census > (6*month) &
+                                                 delay_at_census <= (12*month), 
+                                               1, 0),
+         delay_over_12_months = dplyr::if_else(delay_at_census > (12*month), 1, 
+                                               0),
+################################################################################
+# delay_over_3_days & delay_under_2_weeks no longer used. Have added them back in 
+# but remove if confirmed as no longer being used.
+         delay_over_3_days = dplyr::if_else(delay_at_census > 3, 1, 0),
+################################################################################
+# SPSS syntax uses le (<=) 14 days - is this a mistake?
+         delay_under_2_weeks = dplyr::if_else(delay_at_census <= 14, 1, 0),
+         delay_over_2_weeks = dplyr::if_else(delay_at_census > 14, 1, 0),
+         delay_over_4_weeks = dplyr::if_else(delay_at_census > 28, 1, 0),
+         delay_over_6_weeks = dplyr::if_else(delay_at_census > 42, 1, 0)) %>%
+
+  # DUPLICATE RECORDS
+  
+  #Check for duplicate CHI numbers and flag.
+  dplyr::arrange(chi_number) %>%
+  tidylog::group_by(chi_number) %>%
+  mutate(duplicate_CHI = if_else(max(dplyr::row_number()) > 1, "1","0")) %>%
+  dplyr::ungroup() %>%
+
+  # Need to capture paired records with errors to investigate reason for 
+  # duplicate - so update Error code for both
+  dplyr::arrange(chi_number, desc(duplicate_CHI)) %>%
+  tidylog::group_by(chi_number) %>%
+  mutate(duplicate_CHI = if_else(max(row_number()) > 1, "1", "0")) %>%
+  dplyr::ungroup() %>%
+  
+  # Check for duplicate CENSUS records and flag
+  dplyr::arrange(chi_number, desc(census_flag)) %>%
+  tidylog::group_by(chi_number, census_flag) %>%
+  mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & 
+                                                census_flag == "1", "1", "0")) %>%
+  dplyr::ungroup() %>%
+
+  # Need to capture paired records with errors to investigate reason for 
+  # duplicate - so update Error code for both.
+  dplyr::arrange(chi_number, desc(error_Duplicate_CHI_Census)) %>%
+  tidylog::group_by(chi_number, census_flag) %>%
+  mutate(error_Duplicate_CHI_Census = if_else(max(row_number()) > 1 & 
+                                                census_flag == "1", 
+                                              lag(error_Duplicate_CHI_Census), 
+                                              error_Duplicate_CHI_Census)) %>%
+  dplyr::ungroup() %>%
+  # DELAY LOCATION (acute, gpled, notgpled) while spec still in data.
+  dplyr::arrange(location)
+
+# Create location name lookup.
+hospital_lookup <- bind_rows(readr::read_rds(paste0(
+  plat_filepath, "linkage/output/lookups/Unicode/National Reference Files/",
+  "location.rds")) %>%
+  select(Location, Locname) %>%
+    rename(location      = Location,
+           location_name = Locname),
+  readr::read_rds(paste0(plat_filepath,
+                         "linkage/output/lookups/Unicode/National Reference Files/",
+                         "Health_Board_Identifiers.rds")) %>%
+  select(description, HB_Area_2014) %>%
+    rename(location      = HB_Area_2014,
+           location_name = description),
+  tibble(location = "Scot", location_name = "Scotland"),
+  tibble(location = "S08000029", location_name = "NHS Fife"),
+  tibble(location = "S08000030", location_name = "NHS Tayside"),
+  tibble(location = "S08000031", location_name = "NHS Greater Glasgow & Clyde"),
+  tibble(location = "S08000032", location_name = "NHS Lanarkshire"))
+
+# Match on location names  
+datafile <- datafile %>%
+  tidylog::left_join(hospital_lookup, by = "location") %>%
+  dplyr::mutate(acute = dplyr::if_else(is.na(location_name), 1, 0),
+                gpled = dplyr::if_else(acute == 0 & spec_code == "E12", 1, 0),
+                notgpled = dplyr::if_else(acute == 0 & gpled == 0, 1, 0))
+
+
+### 5.Create prov census/OBD figures ----
+
+# PRODUCE PROVISIONAL CENSUS / OBD FIGURES FOR CHECKING AGAINST VERIFICATION FORMS.
+# Check the number of census records match those in Verification form.
+# Number should equal total cases where census_flag = Y.
+
+datafile <- datafile %>%
+  # Set num_pats variable to 1 for all records (incl Islands/d&g).
+  mutate(num_pats = 1)
+
+# Create a provisional HB census total - excl Code 100.
+census_hb <- datafile %>%
+  filter(dd_code_1 != "100" & census_flag == 'Y') %>%
+  group_by(nhs_board, discharge_within_3_days_census, reason_grp_high_level) %>%
+    summarise(census_total = n()) %>%
+  dplyr::ungroup()
+
+
+# Create a provisional HB/LA census total - excl Code 100.
+census_la <- datafile %>%
+  filter(dd_code_1 != "100" & 
+           (census_flag == 'Y' | discharge_within_3_days_census == 1)) %>%
+  group_by(nhs_board, local_authority_code, discharge_within_3_days_census, 
+           reason_grp_high_level) %>%
+    summarise(census_total = n()) %>%
+  dplyr::ungroup()
+
+# Create a provisional HB OBD total- excl Code 100
+obd_hb <- datafile %>%
+  filter(dd_code_1 != "100") %>%
+    tidylog::group_by(nhs_board, reason_grp_high_level) %>%
+    tidylog::summarise(obds_in_month = sum(obds_in_month)) %>%
+  dplyr::ungroup()
+
+  # Create a provisional LA OBD total- excl Code 100
+obd_la <- datafile %>%
+  filter(dd_code_1 != "100") %>%
+    tidylog::group_by(nhs_board, local_authority_code, reason_grp_high_level) %>%
+    tidylog::summarise(obds_in_month = sum(obds_in_month)) %>%
+  dplyr::ungroup()
+
+prov_census_la <- merge(census_la, obd_la, all = TRUE)
+prov_census_hb <- merge(census_hb, obd_hb, all = TRUE)
+prov_census <- dplyr::bind_rows(prov_census_hb, prov_census_la) %>%
+  mutate(reason_grp_high_level = ifelse(reason_grp_high_level != "Code 9", 
+                                        "HSC/PCF", reason_grp_high_level)) %>%
+  dplyr::rename(delay_category = reason_grp_high_level) %>%
+  tidyr::replace_na(list(census_total = 0,
+                         obds_in_month = 0)) %>%
+  # Copy Census Figure to discharge_within_3_days_census column.
+  mutate(discharge_within_3_days_census = ifelse(discharge_within_3_days_census 
+                                                 == 1, census_total, 
+                                                 discharge_within_3_days_census),
+         # Now set Census value to 0 if there is a value in 
+         # discharge_within_3_days_census column.
+         census_total = ifelse(discharge_within_3_days_census > 0, 0, 
+                               census_total)) %>%
+  # This is so that both columns can be aggregated then summed to get a Census 
+  # figure including those discharged within 3 days of census.
+  tidylog::group_by(nhs_board, local_authority_code, delay_category) %>%
+    tidylog::summarise(discharge_within_3_days_census = 
+                         sum(discharge_within_3_days_census), 
+                       census_total = sum(census_total),
+                       obs_in_Month = sum(obds_in_month)) %>%
+  dplyr::ungroup() %>%
+  arrange(nhs_board, local_authority_code, delay_category) %>%
+  mutate(overall_total = discharge_within_3_days_census + census_total) %>%
+  readr::write_csv(paste0(filepath, census_date,
+                          "_Provisional Census and OBD totals.csv"))
+
+# ADD SPECIALTY DESCRIPTION.
+specialty_group <- readr::read_rds(paste0(plat_filepath,
+                    "linkage/output/lookups/Unicode/National Reference Files/",
+                    "specialt.rds")) %>%
+  select(speccode, description) %>%
+  rename(spec_code = speccode,
+         spec_desc = description) %>%
+  # Remove formats and widths - inherited from SPSS?
+  haven::zap_formats() %>%
+  haven::zap_widths()
+  
+  datafile <- datafile %>%
+    left_join(specialty_group, by = "spec_code")
+  
+# MATCH FILE WITH LATEST NATIONAL POSTCODE DIRECTORY FILE - This will add 
+#DATAZONE2011.
+  
+postcode_lookup <- readr::read_rds(paste0(plat_filepath,
+        "linkage/output/lookups/Unicode/Geography/Scottish Postcode Directory/",
+                                  "Scottish_Postcode_Directory_2019_2.rds")) %>%
+  select(pc7, DataZone2011) %>%
+  rename(postcode = pc7,
+         dz_2011  = DataZone2011)
+
+dz_2011_lookup <- readr::read_rds(paste0(plat_filepath,
+                       "linkage/output/lookups/Unicode/Geography/HSCP Locality/",
+                       "HSCP Localities_DZ11_Lookup_20191216.rds")) %>%
+  select(data_zone2011, hscp_locality, hscp2019name) %>%
+  rename(dz_2011 = data_zone2011,
+         hscp_locality_derived = hscp_locality,
+         hscp_2019_name_derived  = hscp2019name)
+
+datafile <- datafile %>%
+  dplyr::arrange(postcode) %>%
+  tidylog::left_join(postcode_lookup, by = "postcode") %>%
+  # NEXT, USE DATAZONE TO MATCH ON HSCP LOCALITY AND HSCP, USING LOOKUP
+  dplyr::arrange(dz_2011) %>%
+  tidylog::left_join(dz_2011_lookup, by = "dz_2011")
+  
+### 6.Save data ----
+
+# Save as Scotland_validated
+# age_grp, specialty_group, keep or add in later scripts?
+datafile <- datafile %>%
+  select(monthflag, nhs_board, local_authority_code, postcode, dz_2011,
+         hscp_locality_derived, hscp_2019_name_derived, 
+         out_of_area_case_indicator, chi_number, census_flag, location, 
+         location_name, sex_code, date_of_birth, age_at_rdd, age_grp, spec_code, 
+         spec_desc, admission_date, date_referred_for_sw_assessment,
+         ready_for_discharge_date, discharge_date, 
+         discharge_within_3_days_census, discharge_to_code, obds_in_month, 
+         delay_at_census, reason_grp_high_level, reason_grp, dd_code_1, 
+         dd_code_2, delay_description, num_pats, delay_length_group, 
+         delay_1_to_3_days, delay_3_to_14_days, delay_2_to_4_weeks, 
+         delay_4_to_6_weeks, delay_6_to_12_weeks, delay_3_to_6_months, 
+         delay_6_to_12_months, delay_over_12_months, delay_over_3_days, 
+         delay_under_2_weeks, delay_over_2_weeks, delay_over_4_weeks, 
+         delay_over_6_weeks, acute, gpled, notgpled) %>%
+  readr::write_csv(paste0(filepath, census_date,
+                          "_SCOTLAND_validated.csv"))
+
+### END OF SCRIPT ###
