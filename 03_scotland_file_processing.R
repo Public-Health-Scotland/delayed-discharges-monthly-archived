@@ -23,7 +23,7 @@ source("00_setup_environment.R")
 ### 2.Get Scotland_validated file for latest month ----
 
 # Read in file
-datafile <- readr::read_csv(paste0(filepath,"Allboards_R.csv")) %>%
+datafile <- readr::read_csv(paste0(filepath,"Allboards_R_.csv")) %>%
   janitor::clean_names()
 
 # Format variables and recode
@@ -33,12 +33,12 @@ datafile <- datafile %>%
   #CHI NUMBER - Remove leading / trailing spaces & add leading 0 if missing.
   mutate(chi_number = trimws(chi_number),
          chi_number = str_pad(chi_number, width = 10, pad = "0", side = "left"),
-         #Format dates
-         mutate_at(vars(contains("date"), dmy)),
          # SPSS syntax used to use 2 variables to calculate OBDs in the month 
          # based on full length of delay, not from latest RDD (RDD2)- no longer 
          # needed?
-         ready_for_discharge_date = date_declared_medically_fit)
+         ready_for_discharge_date = date_declared_medically_fit) %>%
+  #Format dates
+  dplyr::mutate_at(vars(contains('date')), lubridate::dmy)
 
 datafile <- datafile %>%
   # Recode out of area:
