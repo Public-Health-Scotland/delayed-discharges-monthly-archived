@@ -24,24 +24,7 @@ library(stringr)      # For string manipulation and matching
 library(janitor)      # For 'cleaning' variable names
 library(phsmethods)   # For postcode tidying
 
-
-### 2 - Define Whether Running on Server or Locally ----
-if (sessionInfo()$platform == "x86_64-redhat-linux-gnu (64-bit)") {
-  platform <- "server"
-} else {
-  platform <- "locally"
-}
-
-
-# Define root directory for cl-out based on whether script is running locally or
-# on server
-plat_filepath <- dplyr::if_else(platform == "server",
-                                '/conf/',
-                                '//stats/')
-
-filepath <- paste0(plat_filepath, "delayed_discharges/RAP development/2019_07/Outputs/")
-
-### 3 - Census dates ----
+### 2 - Census dates ----
 
 # Monthly census snapshot taken on the last Thursday of the month
 census_date <- lubridate::dmy(25072019)
@@ -85,5 +68,29 @@ current_month <- paste0(tolower(month(census_date, label = TRUE, abbr = TRUE)),
 
 # Previous census date in "yyyy-mm-dd" format
 prev_census_date <- census_date_seq[nrow(census_date_seq),]$thursdays
+
+# Variable for file path of census month, eg. "2019_07"
+month_path <- paste0(year(census_date), "_", 
+                     sprintf("%02d", month(census_date, label = FALSE)))
+
+### 3 - Create filepaths based on whether running on Server or Locally ----
+
+if (sessionInfo()$platform == "x86_64-redhat-linux-gnu (64-bit)") {
+  platform <- "server"
+} else {
+  platform <- "locally"
+}
+
+# Define root directory for cl-out based on whether script is running locally or
+# on server
+plat_filepath <- dplyr::if_else(platform == "server",
+                                '/conf/',
+                                '//stats/')
+# Output path
+filepath <- paste0(plat_filepath, "delayed_discharges/RAP development/"
+                   , month_path, "/Outputs/")
+# Initial data file path
+data_path <- paste0(plat_filepath, "delayed_discharges/RAP development/"
+                    , month_path, "/Data/")
 
 ### END OF SCRIPT ###
