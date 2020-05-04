@@ -37,8 +37,8 @@ datafile <- datafile %>%
 ### 3.Add latest monthly file to current trend file ----
 
 # Add files together to update trend file
-trend_file <- readr::read_csv(paste0(filepath, prev_census_date, "_trend_file_", 
-                                initial_month, "_", previous_month, ".csv")) %>%
+trend_file <- readr::read_rds(paste0(filepath, "TrendFile_", initial_month, 
+                                     "-", previous_month, ".rds")) %>%
   janitor::clean_names() %>%
   mutate(chi_number = toString(chi_no)) %>%
          mutate_at(vars(contains("date")), dmy)
