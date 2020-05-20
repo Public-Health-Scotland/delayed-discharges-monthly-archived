@@ -57,7 +57,7 @@ datafile<-datafile%>% mutate(age_grp=
                                if_else(age_at_rdd<75, "18-74",
                                        if_else(age_at_rdd>=75, "75+", " ")))
 
-
+ 
 
 
 #save out file for main bed days file
