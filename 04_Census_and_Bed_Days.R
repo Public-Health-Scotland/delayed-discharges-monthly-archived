@@ -27,18 +27,18 @@
 
 ### 1.Filepaths for latest monthflag
 
-filepath<-("/conf/delayed_discharges/RAP development/2019_07/Outputs/")
-filepath2<-("/conf/delayed_discharges/RAP development/2019_07/Data/scotland/")
+filepath<-("/conf/delayed_discharges/RAP development/2020_02/Outputs/")
+filepath2<-("/conf/delayed_discharges/RAP development/2020_02/Data/scotland/")
 
 #bring in environment 
 source("00_setup_environment.R")
 
 
-monthflagflag<-("Jul 2019")
+monthflagflag<-("Feb 2020")
 
 ### 2.Get Scotland_validated file for latest monthflag ----
 
-datafile<-read.csv(paste0(filepath,"2019-07-25_SCOTLAND_validated.csv"))
+datafile<-read.csv(paste0(filepath2,"SCOTLAND_validated.csv"))
 #sum(datafile$obds_in_month) total should be 47623 for July 2019.
 
 #strip out code 100s
@@ -51,6 +51,27 @@ datafile<-datafile %>% filter(reason_grp_high_level!="Code 100")
 datafile<-datafile %>% mutate(areaname=" ")
 datafile<-datafile %>% mutate(year="2019-20")
 
+# #rename variables ( may not be needed once full RAP programs used as variables will have been renamed in earlier process)
+# datafile <- datafile %>% 
+#   rename(nhs_board=Healthboard,
+#          chi_number=CHINo,
+#          age_at_rdd=AGEATRDD,
+#          postcode=PatientPostcode,
+#          local_authority_code=LocalAuthorityArea,
+#          date_of_birth=PatientDOB,
+#          discharge_specialty_nat_code=SpecialtyCode,
+#          date_referred_for_sw_assessment=DateReferralReceived,
+#          date_declared_medically_fit=Readyfordischargedate,
+#          dd_code_1=REASONFORDELAY,
+#          dd_code_2=REASONFORDELAYSECONDARY,
+#          out_of_area_case_indicator=Outofareacaseindicator,
+#          admission_date=OriginalAdmissionDate,
+#          sex_code=Gender,
+#          discharge_date=DateDischarge,
+#          discharge_to_code=DischargeReason,
+#          census_flag=CENSUSFLAG,
+#          delay_description=DELAY_DESCRIPTION)
+
 #Create age_grpgGrouping
 
 datafile<-datafile%>% mutate(age_grp=
@@ -60,10 +81,11 @@ datafile<-datafile%>% mutate(age_grp=
  
 
 
+
 #save out file for main bed days file
 
 
-write_sav(datafile,paste0(filepath,"main bed days file.sav")) # save out file
+#write_sav(datafile,paste0(filepath,"main bed days file.sav")) # save out file
 
 #set function
 '%!in%' <- function(x,y)!('%in%'(x,y))
@@ -74,27 +96,32 @@ write_sav(datafile,paste0(filepath,"main bed days file.sav")) # save out file
 datafile2 <- filter(datafile, dd_code_2 %!in%c("26X","46X") & census_flag=="Y")
 
 
-write_sav(datafile2,paste0(filepath,"main census file.sav")) # save out file
+#write_sav(datafile2,paste0(filepath,"main census file.sav")) # save out file
 
 
 
 #Create Reason 2 Groupingas
 
 ##Sub grouping reason_grp for code 9s are currently being classed as H&SC or Pat/Fam reasons. Ensure they are just code 9s.
-##Also bring in TRansport as a separate category.
+##Also bring in Transport as a separate category.
+
+datafile3<-datafile2 %>% 
+  mutate(reason_grp = as.character(reason_grp))%>% 
+  mutate(reason_grp=
+            if_else(delay_description=="Adults with Incapacity Act", "Adults with Incapacity Act",reason_grp))
+
+datafile3<-datafile2 %>% 
+  mutate(reason_grp = as.character(reason_grp))%>% 
+  mutate(reason_grp=
+            if_else(delay_description!="Adults with Incapacity Act" & reason_grp_high_level=="Code 9", "Other code 9 reasons(not AWI)",reason_grp))
+
+datafile3<-datafile2 %>% 
+  mutate(reason_grp = as.character(reason_grp))%>% 
+  mutate(reason_grp=
+            if_else(delay_description=="Awaiting availability of transport","Transport",reason_grp))
 
 
-datafile3<-datafile2 %>% mutate(reason_grp=
-                                  if_else(delay_description=="Adults with Incapacity Act", "Adults with Incapacity Act",reason_grp))
-
-datafile3<-datafile2 %>% mutate(reason_grp=
-                                  if_else(delay_description!="Adults with Incapacity Act" & reason_grp_high_level=="Code 9", "Other code 9 reasons(not AWI)",reason_grp))
-
-datafile3<-datafile2 %>% mutate(reason_grp=
-                                  if_else(delay_description=="Awaiting availability of transport","Transport",reason_grp))
-
-
-write_sav(datafile3,paste0(filepath,"main census file Tabs 1 3 6.sav")) # save out file
+#write_sav(datafile3,paste0(filepath,"main census file Tabs 1 3 6.sav")) # save out file
 
 #Get reason / age_grp breakdown for Scotland.
 
@@ -116,7 +143,7 @@ Scotlandbymainreasongrouping <- datafile4 %>%
             gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
   ungroup()
 
-write_sav(Scotlandbymainreasongrouping,paste0(filepath,"Scotland by main reason grouping.sav")) # save out file
+#write_sav(Scotlandbymainreasongrouping,paste0(filepath,"Scotland by main reason grouping.sav")) # save out file
 
 
 Scotlandbysubreasongrouping <- datafile4 %>% 
@@ -135,7 +162,7 @@ Scotlandbysubreasongrouping <- datafile4 %>%
 
 
 
-write_sav(Scotlandbysubreasongrouping,paste0(filepath,"Scotland by sub reason grouping.sav")) # save out file
+#write_sav(Scotlandbysubreasongrouping,paste0(filepath,"Scotland by sub reason grouping.sav")) # save out file
 
 #Breakdown for HBs (Level=2)
 datafile4$level<-"2"
@@ -155,7 +182,7 @@ HBbymainreasongrouping <- datafile4 %>%
             gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
   ungroup()
 
-write_sav(HBbymainreasongrouping,paste0(filepath,"HB by main reason grouping.sav")) # save out file
+#write_sav(HBbymainreasongrouping,paste0(filepath,"HB by main reason grouping.sav")) # save out file
 
 
 HBbysubreasongrouping <- datafile4 %>% 
@@ -171,8 +198,9 @@ HBbysubreasongrouping <- datafile4 %>%
             gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
   ungroup()
 
-write_sav(HBbysubreasongrouping,paste0(filepath,"HB by sub reason grouping.sav")) # save out file
+#write_sav(HBbysubreasongrouping,paste0(filepath,"HB by sub reason grouping.sav")) # save out file
 
+# Breakdown for LA.
 datafile4$level<-"3"
 datafile4<-datafile4 %>% mutate(areaname=local_authority_code)
 
@@ -190,7 +218,7 @@ labymainreasongrouping <- datafile4 %>%
             gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
   ungroup()
 
-write_sav(labymainreasongrouping,paste0(filepath,"la by main reason grouping.sav")) # save out file
+#write_sav(labymainreasongrouping,paste0(filepath,"la by main reason grouping.sav")) # save out file
 
 
 labysubreasongrouping <- datafile4 %>% 
@@ -206,7 +234,7 @@ labysubreasongrouping <- datafile4 %>%
               gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
     ungroup()
 
-write_sav(labysubreasongrouping,paste0(filepath,"la by sub reason grouping.sav")) # save out file
+#write_sav(labysubreasongrouping,paste0(filepath,"la by sub reason grouping.sav")) # save out file
 
 
 #add files together
@@ -214,12 +242,14 @@ write_sav(labysubreasongrouping,paste0(filepath,"la by sub reason grouping.sav")
 Scot_HB_la<-bind_rows(Scotlandbymainreasongrouping,Scotlandbysubreasongrouping,HBbymainreasongrouping,HBbysubreasongrouping,
                       labymainreasongrouping,labysubreasongrouping)
 
-datafile5<-Scot_HB_la
 
-#if reason_grp_high_level is blank, reason_grp_high_level = reason_grp
 
-datafile6<-datafile5%>% mutate(reason_grp_high_level=
-                                 if_else(is.na(reason_grp_high_level), reason_grp,reason_grp_high_level))
+#if reason_grp_high_level is blank(N/A), reason_grp_high_level = reason_grp
+
+datafile6<-Scot_HB_la%>% 
+  mutate(reason_grp_high_level = as.character(reason_grp_high_level))%>% 
+  mutate(reason_grp_high_level=
+           if_else(is.na(reason_grp_high_level), reason_grp,reason_grp_high_level))
 
 #remove reason_grp
 datafile6<-select(datafile6,-reason_grp)
@@ -238,13 +268,13 @@ ScotHBlaallage_grps<- datafile6a %>%
             gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
   ungroup()
 
-write_sav(ScotHBlaallage_grps,paste0(filepath,"ScotHBla all age_grps.sav")) # save out file
+#write_sav(ScotHBlaallage_grps,paste0(filepath,"ScotHBla all age_grps.sav")) # save out file
 
 
 ScotHBlaallreasonexcHSCPatFamtotal<-bind_rows(datafile6,ScotHBlaallage_grps)
 table(ScotHBlaallreasonexcHSCPatFamtotal$reason_grp_high_level) # check on reason_grp_high_level
 
-write_sav(ScotHBlaallreasonexcHSCPatFamtotal,paste0(filepath,"ScotHBla all reasons exc HSC PatFam total.sav")) # save out file
+#write_sav(ScotHBlaallreasonexcHSCPatFamtotal,paste0(filepath,"ScotHBla all reasons exc HSC PatFam total.sav")) # save out file
 
 
 #Calculate total number of delays excluding code9s.
@@ -264,14 +294,14 @@ ScotHBlaallreasonsincHSCPatFamtotal<- datafile7 %>%
             gpled=sum(gpled,na.rm=TRUE),notgpled=sum(notgpled,na.rm=TRUE)) %>% 
   ungroup()
 
-write_sav(ScotHBlaallreasonsincHSCPatFamtotal,paste0(filepath,"ScotHBla all reasons inc HSC PatFam total.sav")) # save out file
+#write_sav(ScotHBlaallreasonsincHSCPatFamtotal,paste0(filepath,"ScotHBla all reasons inc HSC PatFam total.sav")) # save out file
 
 
 #calculate the number of delays for all reasons
 
 datafile8<-filter(ScotHBlaallreasonexcHSCPatFamtotal, reason_grp_high_level%in%c("Health and Social Care Reasons","Code 9",
                                                                  "Patient/Carer/Family-related reasons"))
-table(datafile8$reason_grp_high_level) # check totals against the syntax output ( 320 total is correct )
+table(datafile8$reason_grp_high_level) # check totals against the syntax output 
 
 datafile8$reason_grp_high_level<-"All"
 ScotHBlaallreasonsalldelaystotal<- datafile8 %>% 
@@ -294,7 +324,7 @@ Tabs136<-
 arrange(Tabs136,areaname,age_grp,reason_grp_high_level) # arrange data in order for tables
 
 
-write_sav(Tabs136,paste0(filepath,"Tabs 1 3 6_R.sav"))
+#write_sav(Tabs136,paste0(filepath,"Tabs 1 3 6_R.sav"))
 
 #Tab 4 data - Mean and Media Length of delay IGNORED AS NO LONGER REQUIRED
 ## datafile2 is the main census file
@@ -351,12 +381,12 @@ datafile5<-datafile2
 datafile5$level<-"1"
 datafile5$areaname<-"Scotland"
 datafile5$age_grp<-"All"
-
+table(datafile5$dd_code_1) # check dd_code_1
 #copy secondary Code 9 codes into delay reason - e.g. delay reason 9 becomes 51X etc..
 #then update reas1 with individual delay codes in delayreason
 
-datafile5<-datafile5 %>% mutate(dd_code_1=
-                                  if_else(dd_code_1==9,dd_code_2,dd_code_1))
+#datafile5<-datafile5 %>% mutate(dd_code_1=
+#                                 if_else(dd_code_1==9,dd_code_2,dd_code_1))
 
 Scotlandindreasons<- datafile5 %>% 
   group_by(year,monthflag,level,areaname,age_grp,reason_grp_high_level) %>% 
@@ -416,8 +446,8 @@ Scotlandindreasons<- datafile5 %>%
 
 datafile6<- bind_rows(Tabs136,Scotlandindreasons)
 
-datafile6 <- left_join(Tabs136, Scotlandindreasons,
-                       by = c(("year" = "year"), ("monthflag"="monthflag"),("level"="level"),("areaname"="areaname"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
+#datafile6 <- left_join(Tabs136, Scotlandindreasons,
+#                       by = c(("year" = "year"), ("monthflag"="monthflag"),("level"="level"),("areaname"="areaname"), ("age_grp"="age_grp"),("reason_grp_high_level"="reason_grp_high_level")))
                        
                        
 
@@ -576,13 +606,13 @@ datafile7<- bind_rows(datafile6,Scotlandindreasons)
 #                                 reason_grp_high_level%!in%c("All","Health and Social Care Reasons",
 #                                 "Code 9","All Delays excl.Code 9","Patient/Carer/Family-related reasons",0,notgpled)))
 
+#Note: used datafile6 as the creation of datafile7 doesn't add anything new - PMc: check .
 
+write_sav(datafile6,paste0(filepath,"All census data.sav"))
 
-write_sav(datafile7,paste0(filepath,"All census data.sav"))
+write.xlsx(datafile6,paste0(filepath,"All census data.xlsx"))
 
-write.xlsx(datafile7,paste0(filepath,"All census data.xlsx"))
-
-table(datafile7$areaname)
+table(datafile6$areaname)
 
 
 
@@ -595,9 +625,10 @@ table(datafile7$areaname)
 
 #Get filespath+main bed days file.SAV
 
-datafile11<-read_spss(paste0(filepath,"main bed days file.sav"))
+#datafile11<-read_spss(paste0(filepath,"main bed days file.sav"))
 
-datafile11<-datafile11 %>% mutate(nhs_board=substring(nhs_board, 5)) # change nhs_board and remove the 'NHS_'
+
+datafile11<-datafile %>% mutate(nhs_board=substring(nhs_board, 5)) # change nhs_board and remove the 'NHS_'
 
 hbbeddaysdiffage_grp<- datafile11 %>% 
   group_by(nhs_board,age_grp,reason_grp_high_level) %>% 
@@ -605,7 +636,7 @@ hbbeddaysdiffage_grp<- datafile11 %>%
   ungroup()
 
 
-write_sav(hbbeddaysdiffage_grp,paste0(filepath,"hb bed days diff age_grp_R.sav")) # save out file
+#write_sav(hbbeddaysdiffage_grp,paste0(filepath,"hb bed days diff age_grp_R.sav")) # save out file
 
 labeddaysdiffage_grp<- datafile11 %>% 
   group_by(local_authority_code,age_grp,reason_grp_high_level) %>% 
@@ -613,7 +644,7 @@ labeddaysdiffage_grp<- datafile11 %>%
   ungroup()
 
 
-write_sav(labeddaysdiffage_grp,paste0(filepath,"la bed days diff age_grp_R.sav")) # save out file
+#write_sav(labeddaysdiffage_grp,paste0(filepath,"la bed days diff age_grp_R.sav")) # save out file
 
 datafile12<-datafile11 %>% mutate(nhs_board="Scotland")
 
@@ -623,7 +654,7 @@ Scotbeddaysdiffage_grp<- datafile12 %>%
   ungroup()
 
 
-write_sav(Scotbeddaysdiffage_grp,paste0(filepath,"Scot bed days diff age_grp_R.sav")) # save out file
+#write_sav(Scotbeddaysdiffage_grp,paste0(filepath,"Scot bed days diff age_grp_R.sav")) # save out file
 
 
 # add files
@@ -642,7 +673,7 @@ Scotlandhbbeddays<- datafile13 %>%
 #add files
 Scotandhbbeddaysallagesallreasons<-rbind(Scotlandhbbeddays,Scotbeddaysdiffage_grp,hbbeddaysdiffage_grp)
 
-write_sav(Scotandhbbeddaysallagesallreasons,paste0(filepath,"Scot and hb bed days_R.sav")) # save out file
+#write_sav(Scotandhbbeddaysallagesallreasons,paste0(filepath,"Scot and hb bed days_R.sav")) # save out file
 
 datafile15<-Scotandhbbeddaysallagesallreasons %>% mutate(reason_grp_high_level="All")
 
@@ -653,7 +684,7 @@ ScotlandhbAllage_grpsbeddays<- datafile15 %>%
 
 Scotlandhbbeddaysallagegrpsallreasons<-rbind(ScotlandhbAllage_grpsbeddays,Scotandhbbeddaysallagesallreasons)
 
-write_sav(Scotlandhbbeddaysallagegrpsallreasons,paste0(filepath,"Scot and hb bed days all age_grps all reasons.sav")) # save out file
+#write_sav(Scotlandhbbeddaysallagegrpsallreasons,paste0(filepath,"Scot and hb bed days all age_grps all reasons.sav")) # save out file
 
 #LAs
 #use la bed days diff age file 
@@ -667,7 +698,7 @@ labeddaysallage_grps<- datafile17 %>%
 
 datafile18<-rbind(labeddaysallage_grps,labeddaysdiffage_grp)
 
-write_sav(datafile18,paste0(filepath,"la bed days.sav")) # save out file
+#write_sav(datafile18,paste0(filepath,"la bed days.sav")) # save out file
 
 datafile19<-datafile18 %>% mutate(reason_grp_high_level="All")
 
@@ -678,7 +709,7 @@ labeddaysallreason_grp_high_level<- datafile19 %>%
 
 datafile20<-rbind(labeddaysallreason_grp_high_level,datafile18)
 
-write_sav(datafile20,paste0(filepath,"la bed days all age_grps all reasons.sav")) # save out file
+#write_sav(datafile20,paste0(filepath,"la bed days all age_grps all reasons.sav")) # save out file
 
 ###HB.
 #match in to hb data sheet template
@@ -700,7 +731,7 @@ datafile21 <- left_join(Scotlandhbbeddaysallagegrpsallreasons,hbbedstemplate,
 
 arrange(datafile21,nhs_board,age_grp,reason_grp_high_level) # arrange data in order for tables
 
-write_sav(datafile21,paste0(filepath,"hb bed days data sheet minus standard.sav")) # save out file
+#write_sav(datafile21,paste0(filepath,"hb bed days data sheet minus standard.sav")) # save out file
 datafile21<-datafile21%>% mutate(nhs_board=toupper(nhs_board),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
 
 #Need to ensure there is a total for standard delays (HSC/PFR added together). This is due to the format of the publication data sheet.
@@ -742,7 +773,7 @@ datafile27 <- left_join(hbbedstemplate,datafile26,
 
 #replace obds in correct column for all reason groups
 datafile27<-datafile27 %>% mutate(obds_in_month=
-                                     if_else(is.na(obds_in_month),0,obds_in_month))
+                                     if_else(is.na(obds_in_month),0L,obds_in_month))
 
 #remove surplus columns
 datafile27<-select(datafile27,-obds2)
@@ -776,7 +807,7 @@ labeddaysdatasheetminusstandard <- left_join(datafile20,labedstemplate,
 
 arrange(labeddaysdatasheetminusstandard,local_authority_code,age_grp,reason_grp_high_level) # arrange data in order for tables
 
-write_sav(labeddaysdatasheetminusstandard,paste0(filepath,"la bed days data sheet minus standard.sav")) # save out file
+#write_sav(labeddaysdatasheetminusstandard,paste0(filepath,"la bed days data sheet minus standard.sav")) # save out file
 labeddaysdatasheetminusstandard<-labeddaysdatasheetminusstandard%>% mutate(local_authority_code=toupper(local_authority_code),age_grp=toupper(age_grp),reason_grp_high_level=toupper(reason_grp_high_level))
 
 #Add in total for Standard filter on any row that isn't all
@@ -814,7 +845,8 @@ laallvariations <- left_join(labedstemplate,lastandardandothers,
 
 #replace obds in correct column for all reason groups
 laallvariations<-laallvariations %>% mutate(obds_in_month=
-                                    if_else(is.na(obds_in_month),0,obds_in_month))
+                                    if_else(is.na(obds_in_month),0L,obds_in_month))
+
 
 
 laallvariations<-arrange(laallvariations,laallvariations$local_authority_code,laallvariations$age_grp,laallvariations$reason_grp_high_level)
