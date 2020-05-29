@@ -29,21 +29,67 @@ source("00_setup_environment.R")
 
 
 ### 1. Read in csv files ----
-a_a <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/a&a/a&a.csv")
-borders <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/borders/borders.csv")
-d_g<-read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/d&g/d&g.csv")
-fife <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/fife/fife.csv")
-fv<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/fv/fv.csv")
-glasgow<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/glasgow/glasgow.csv")
-grampian<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/grampian/grampian.csv")
-highland<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/highland/highland.csv")
-lanark<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/lanark/lanark.csv")
-lothian<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/lothian/lothian.csv")
-orkney<- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/orkney/orkney.csv")
-shetland <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/shetland/shetland.csv")
-tayside <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/tayside/tayside.csv")
-wi <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/wi/wi.csv")
+a_a <- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/a&a/a&a.csv")
+borders <- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/borders/borders.csv")
+d_g<-read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/d&g/d&g.csv")
+fife <- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/fife/fife.csv")
+fv<- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/fv/fv.csv")
+glasgow<- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/glasgow/glasgow.csv")
+grampian<- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/grampian/grampian.csv")
+highland<- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/highland/highland.csv")
+lanark<- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/lanark/lanark.csv")
+lothian<- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/lothian/lothian.csv")
+orkney<- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/orkney/orkney.csv")
+shetland <- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/shetland/shetland.csv")
+tayside <- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/tayside/tayside.csv")
+wi <- read.csv("/conf/delayed_discharges/RAP development/2020_04/Data/wi/wi.csv")
 
+# Description - Define function to format data file to ensure consistent
+# variable names, variable types, etc.
+#########################################################################
+
+
+format_data <- function(data){
+  
+  data(a_a,borders,d_g,fife,fv,glasgow,grampian,highland,lanark,lothian,orkney,shetland,tayside,wi) %>%
+    
+    # Standardise variable names
+    rename_all(~ str_replace(., "\n", " ")) %>%
+    clean_names() %>%
+    rename_all(~ str_replace(., "chi$", "CHINo")) %>%
+    rename_all(~ str_replace(., "HB", "Healthboard")) %>%
+    rename_all(~ str_replace(., "pc7", "PatientPostcode")) %>%
+    rename_all(~ str_replace(., "sex$", "Gender")) %>%
+    
+    # Remove blank rows that contain no data 
+    filter_all(any_vars(!is.na(.))) %>%
+    
+    # Recode all NULLs with NA
+    mutate_all(~ if_else(. == "NULL", NA_character_, .)) %>%
+    
+    # Convert all dates to date format
+    mutate_at(vars(contains("date")),
+              ~ case_when(
+                # Excel format
+                nchar(.) == 5 ~ janitor::excel_numeric_to_date(as.numeric(.)),
+                # Invalid format
+                !is.na(.) & suppressWarnings(is.na(lubridate::dmy(.))) ~ dmy("09099999"),
+                TRUE ~ dmy(.)
+              )) %>%
+    
+    # Trim white space from all character variables
+    mutate_if(is.character, ~ str_trim(., side = "both")) %>%
+    
+    # Remove special characters from character variables
+    # Previous issues with file encoding different apostrophe types
+    mutate_if(is.character, ~ map_chr(str_extract_all(., "[0-9A-Za-z\\s/-]"),
+                                      ~ reduce(.x, ~ paste0(.x, .y)))) %>%
+    
+    # Pad CHI Number
+    mutate(CHINo = str_pad(CHINo, 
+                                width = 10, side = "left", pad = "0"))
+  
+}
 
 ### 2. Ensure that Local Authority Code is saved as a character ( this causes issues later if not done!) ----
 
@@ -64,7 +110,9 @@ wi <- read.csv("/conf/delayed_discharges/RAP development/2019_07/Data/wi/wi.csv"
 #tayside$Local.Authority.Code <- as.character(tayside$Local.Authority.Code)
 #wi$Local.Authority.Code <- as.character(wi$Local.Authority.Code)
 
+
 ### 3. Add boards Together  ----
+
 Scot_boards<-rbind(a_a,borders,d_g,fife,fv,glasgow,grampian,highland,lanark,lothian,orkney,shetland,tayside,wi)
 View(Scot_boards)
 
@@ -155,8 +203,8 @@ table(Scotland_allboards$nhs_board)
 
 ### 9. Save out file as csv and also as a sav file  ----
 
-write.csv(Scotland_allboards,"//conf/delayed_discharges/RAP development/2019_07/Outputs/Allboards_R_.csv")
-write_sav(Scotland_allboards,"//conf/delayed_discharges/RAP development/2019_07/Outputs/Allboards_R.sav")
+write.csv(Scotland_allboards,"//conf/delayed_discharges/RAP development/2020_04/Outputs/Allboards_R_.csv")
+write_sav(Scotland_allboards,"//conf/delayed_discharges/RAP development/2020_04/Outputs/Allboards_R.sav")
 
 ###############################################################################################################
 
