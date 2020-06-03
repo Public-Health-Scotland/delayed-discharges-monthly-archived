@@ -22,8 +22,8 @@ source(here("functions", "read_clean_data.R"))
 ### 1 - Read in csv files ----
 
 boards <-
-  c("a&a", "borders", "d&g", "fife", "fv", "glasgow", "grampian", "highland",
-    "lanark", "lothian", "orkney", "shetland", "tayside", "wi")
+  c("a&a", "borders", "d&g", "fife", "fv", "glasgow", "grampian", 
+    "highland", "lanark", "lothian", "orkney", "shetland", "tayside", "wi")
 
 all_boards <-
   paste0(filepath_data, boards, "/", boards, ".csv") %>%
