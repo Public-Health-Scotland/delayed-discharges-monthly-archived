@@ -27,6 +27,11 @@ library(stringr)      # For string manipulation and matching
 library(openxlsx)     # For manipulating Excel files
 library(janitor)      # For 'cleaning' variable names
 library(devtools)     # Used to install phimethods from GitHub
+library(purrr)
+library(readr)
+library(here)
+library(phsmethods)
+library(magrittr)
 
 
 ### 2 - Define Whether Running on Server or Locally ----
@@ -44,8 +49,6 @@ if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)",
 plat_filepath <- dplyr::if_else(platform == "server",
                                 '/conf/',
                                 '//stats/')
-
-filepath <- paste0(plat_filepath, "delayed_discharges/RAP development/2019_07/Outputs/")
 
 ### 3 - Census dates ----
 
@@ -91,5 +94,15 @@ current_month <- paste0(tolower(month(census_date, label = TRUE, abbr = TRUE)),
 
 # Previous census date in "yyyy-mm-dd" format
 prev_census_date <- census_date_seq[nrow(census_date_seq),]$thursdays
+
+
+filepath <- 
+  paste0(plat_filepath, "delayed_discharges/RAP development/", 
+         format(census_date, "%Y_%m"), "/Outputs/")
+
+filepath_data <- 
+  paste0(plat_filepath, "delayed_discharges/RAP development/", 
+         format(census_date, "%Y_%m"), "/Data/")
+
 
 ### END OF SCRIPT ###
