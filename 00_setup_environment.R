@@ -28,14 +28,6 @@ library(openxlsx)     # For manipulating Excel files
 library(janitor)      # For 'cleaning' variable names
 library(devtools)     # Used to install phimethods from GitHub
 
-# Check the following  are needed
-library(stringi)      # Where is this package used?
-library(xlsx)         # used for write.xlsx. Use openxlsx::saveWorkbook once 
-                      # templates are created?
-
-devtools::install_github("Health-SocialCare-Scotland/phsmethods")
-
-options(stringsAsFactors = FALSE)
 
 ### 2 - Define Whether Running on Server or Locally ----
 # Covers both the old server and the pro one
@@ -58,7 +50,7 @@ filepath <- paste0(plat_filepath, "delayed_discharges/RAP development/2019_07/Ou
 ### 3 - Census dates ----
 
 # Monthly census snapshot taken on the last Thursday of the month
-census_date <- lubridate::dmy(25072019)
+census_date <- lubridate::dmy(30042020)
 
 
 # First month census was run in current form. Used to calculate census number
