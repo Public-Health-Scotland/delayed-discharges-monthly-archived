@@ -27,6 +27,7 @@ library(stringr)      # For string manipulation and matching
 library(openxlsx)     # For manipulating Excel files
 library(janitor)      # For 'cleaning' variable names
 library(devtools)     # Used to install phimethods from GitHub
+library(data.table)   # For quickly searching
 
 # Check the following  are needed
 library(stringi)      # Where is this package used?

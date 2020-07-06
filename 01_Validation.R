@@ -9,7 +9,7 @@ month_start <- ymd("2020/02/01")
 month_end <- ymd("2020/02/29")
 
 Monthflag <- ("Feb 2020")
-nhs_board <- ("fv")
+nhs_board <- ("lanark")
 
 filepath <- ("/conf/delayed_discharges/RAP development/2020_02/Outputs/")
 filepath2 <- paste0("/conf/delayed_discharges/Data files/Single Submissions (July 2016 onwards)/2020_02/Data/",nhs_board,"/")
@@ -20,11 +20,6 @@ datafile <- read.csv(paste0(filepath2, nhs_board, "_original.csv"))
 
 #convert all spaces to #N/A
 datafile %<>% mutate_all(na_if, "")
-
-#convert all dates to the same format
-datafile %<>% mutate_at(vars(contains("date")), dmy)
-
-
 
 datafile <-
   datafile %>% clean_names()
@@ -49,6 +44,8 @@ datafile <- datafile %>%
          discharge_date=date_discharge,
          discharge_to_code=discharge_reason)
 
+#convert all dates to the same format
+datafile %<>% mutate_at(vars(contains("date")), dmy)
 
 # REVIEW FREQUENCY TABLES
 table(datafile$nhs_board)
@@ -121,15 +118,15 @@ datafile <- datafile %>%
 # Create dob2 in yyyymmdd format
 datafile <- datafile %>%
   mutate(dob2 = as.numeric(paste0(
-    str_sub(date_of_birth, 7, 10), str_sub(date_of_birth, 4, 5),
-    str_sub(date_of_birth, 1, 2)
+    str_sub(date_of_birth, 1, 4), str_sub(date_of_birth, 6, 7),
+    str_sub(date_of_birth, 9, 10)
   )))
 
 # Create ready_medical_discharge_date as a string
 datafile <- datafile %>%
   mutate(ready_medical_discharge_date = as.numeric(paste0(
-    str_sub(date_declared_medically_fit, 7, 10), str_sub(date_declared_medically_fit, 4, 5),
-    str_sub(date_declared_medically_fit, 1, 2)
+    str_sub(date_declared_medically_fit, 1, 4), str_sub(date_declared_medically_fit, 6, 7),
+    str_sub(date_declared_medically_fit, 9, 10)
   )))
 
 
@@ -359,7 +356,7 @@ datafile_check <- datafile %>% filter(discharge_within_3_days_census == 1 & is.n
 
 
 # convert dates to same format
-datafile$census_datePlus3WorkingDays <- format(as.Date(datafile$census_datePlus3WorkingDays, "%Y-%m-%d"), "%Y/%m/%d")
+#datafile$census_datePlus3WorkingDays <- format(as.Date(datafile$census_datePlus3WorkingDays, "%Y-%m-%d"), "%Y/%m/%d")
 
 
 # calculate bed days in current month
@@ -571,7 +568,7 @@ datafile <- datafile %>% mutate(
       "74", "44", " ", "9", "09", "41", "100"
     ), "Y", "N")
 )
-
+table(datafile$query_local_delay_code)
 datafile <- datafile %>% mutate(
   query_local_delay_code =
     if_else((!is.na(dd_code_2) &
@@ -612,18 +609,21 @@ datafile <- datafile %>% mutate(
 
 datafile <- datafile %>% mutate(
   query_DOB =
-    if_else(date_of_birth == "N", "Y", "N")
+    if_else(is.na(date_of_birth), "Y", "N")
 )
+table(datafile$query_DOB)
 
 datafile <- datafile %>% mutate(
   query_sex_code =
-    if_else(sex_code == "N", "Y", "N")
+    if_else(is.na(sex_code), "Y", "N")
 )
+
 
 datafile <- datafile %>% mutate(
   query_specialty_code =
-    if_else(discharge_specialty_nat_code == "N", "Y", "N")
+    if_else(is.na(discharge_specialty_nat_code), "Y", "N")
 )
+table(datafile$discharge_specialty_nat_code)
 
 datafile <- datafile %>% mutate(
   query_ready_for_medical_discharge =
@@ -648,16 +648,20 @@ datafile <- datafile %>% mutate(
   query_ready_for_medical_discharge_lt_adm_date =
     if_else(date_declared_medically_fit < admission_date, "Y", "N")
 )
+table(datafile$query_ready_for_medical_discharge_lt_adm_date)
 
 datafile <- datafile %>% mutate(
   query_discharge_date_lt_rdd =
     if_else(discharge_date < date_declared_medically_fit, "Y", "N")
 )
+table(datafile$query_discharge_date_lt_rdd)
 
 datafile <- datafile %>% mutate(
   query_disch_date_lt_adm_date =
     if_else(discharge_date < admission_date, "Y", "N")
 )
+table(datafile$query_disch_date_lt_adm_date)
+
 # OBDle0 error variable
 
 datafile <- datafile %>% mutate(
@@ -863,8 +867,8 @@ query_list2 <- subset(query_list, select = c(
   query_obds_ltequal_to_zero, query_missing_date_ref_rec_for_11A, num_pats
 ))
 
-write.sav(query_list2, paste0(filepath, nhs_board, "_Query_List_with_datechangeall.sav"))
-write.xlsx(query_list2, paste0(filepath, nhs_board, "_Query_List_v2.xlsx"))
+write.sav(query_list2, paste0(filepath, nhs_board, "_Query_List.sav"))
+write.xlsx(query_list2, paste0(filepath, nhs_board, "_Query_List.xlsx"))
 # isn't saving out a blank file as no errors!
 # If no Query_List.xlsx shows up this means there are no queries.
 
