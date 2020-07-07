@@ -27,16 +27,12 @@ library(stringr)      # For string manipulation and matching
 library(openxlsx)     # For manipulating Excel files
 library(janitor)      # For 'cleaning' variable names
 library(devtools)     # Used to install phimethods from GitHub
-library(data.table)   # For quickly searching
+library(purrr)
+library(readr)
+library(here)
+library(phsmethods)
+library(magrittr)
 
-# Check the following  are needed
-library(stringi)      # Where is this package used?
-library(xlsx)         # used for write.xlsx. Use openxlsx::saveWorkbook once 
-                      # templates are created?
-
-devtools::install_github("Health-SocialCare-Scotland/phsmethods")
-
-options(stringsAsFactors = FALSE)
 
 ### 2 - Define Whether Running on Server or Locally ----
 # Covers both the old server and the pro one
@@ -54,12 +50,10 @@ plat_filepath <- dplyr::if_else(platform == "server",
                                 '/conf/',
                                 '//stats/')
 
-filepath <- paste0(plat_filepath, "delayed_discharges/RAP development/2019_07/Outputs/")
-
 ### 3 - Census dates ----
 
 # Monthly census snapshot taken on the last Thursday of the month
-census_date <- lubridate::dmy(25072019)
+census_date <- lubridate::dmy(28052020)
 
 
 # First month census was run in current form. Used to calculate census number
@@ -74,7 +68,7 @@ census_date_seq <- tibble(thursdays = seq(lubridate::dmy(28072016), census_date,
   # Flag if Thursday is the last in the month by comparing to the 
   # previous Thursday
   mutate(last_thurs_in_month = ifelse((wday(thursdays) == 5) & month(thursdays)
-                                    != month(lead(thursdays)), TRUE, FALSE)) %>%
+                                      != month(lead(thursdays)), TRUE, FALSE)) %>%
   filter(last_thurs_in_month == TRUE)
 
 # First date of census month
@@ -100,5 +94,15 @@ current_month <- paste0(tolower(month(census_date, label = TRUE, abbr = TRUE)),
 
 # Previous census date in "yyyy-mm-dd" format
 prev_census_date <- census_date_seq[nrow(census_date_seq),]$thursdays
+
+
+filepath <- 
+  paste0(plat_filepath, "delayed_discharges/RAP development/", 
+         format(census_date, "%Y_%m"), "/Outputs/")
+
+filepath_data <- 
+  paste0(plat_filepath, "delayed_discharges/RAP development/", 
+         format(census_date, "%Y_%m"), "/Data/")
+
 
 ### END OF SCRIPT ###
